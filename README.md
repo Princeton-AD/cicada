@@ -42,6 +42,12 @@ conda create -n "cicada" python=3.9.16 numpy==1.26.0
 conda activate cicada
 python3 -m pip install -r misc/requirements.txt
 ```
+
+**Temporary fix for QDenseBatchnorm support**: you will also need to install QKeras and hls4ml:
+```
+python3 -m pip install git+https://github.com/julesmuhizi/qkeras.git@qdense_batchnorm
+python3 -m pip install git+https://github.com/AdrianAlan/hls4ml.git@cicada
+```
 ---
 ## Datasets
 
