@@ -23,8 +23,6 @@ from tensorflow.keras.optimizers import Adam
 from typing import List
 from utils import IsValidFile
 
-from qkeras import *
-
 
 def loss(y_true: npt.NDArray, y_pred: npt.NDArray) -> npt.NDArray:
     return np.mean((y_true - y_pred) ** 2, axis=(1, 2, 3))
