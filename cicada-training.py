@@ -7,21 +7,19 @@ import argparse
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import qkeras
-import tensorflow as tf
 import yaml
 
+from pathlib import Path
+from tensorflow import data
+from tensorflow.keras import Model
+from tensorflow.keras.models import load_model
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
+from tensorflow.keras.optimizers import Adam
+
+from utils import IsValidFile
 from drawing import Draw
 from generator import RegionETGenerator
 from models import TeacherAutoencoder, CicadaV1, CicadaV2
-from pathlib import Path
-from tensorflow import data
-from tensorflow import keras
-from tensorflow.keras import Model
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
-from tensorflow.keras.optimizers import Adam
-from typing import List
-from utils import IsValidFile
 
 
 def loss(y_true: npt.NDArray, y_pred: npt.NDArray) -> npt.NDArray:
@@ -49,8 +47,8 @@ def get_student_targets(
 
 def train_model(
     model: Model,
-    gen_train: tf.data.Dataset,
-    gen_val: tf.data.Dataset,
+    gen_train: data.Dataset,
+    gen_val: data.Dataset,
     epoch: int = 1,
     steps: int = 1,
     callbacks=None,
@@ -112,7 +110,7 @@ def run_training(
                 verbose=verbose,
             )
 
-            tmp_teacher = keras.models.load_model("models/teacher")
+            tmp_teacher = load_model("models/teacher")
             s_gen_train = get_student_targets(tmp_teacher, gen, X_train_student)
             s_gen_val = get_student_targets(tmp_teacher, gen, X_val_student)
 
@@ -141,9 +139,9 @@ def run_training(
                 log["loss"], log["val_loss"], f"{model.name}-training-history"
             )
 
-    teacher = keras.models.load_model("models/teacher")
-    cicada_v1 = keras.models.load_model("models/cicada-v1")
-    cicada_v2 = keras.models.load_model("models/cicada-v2")
+    teacher = load_model("models/teacher")
+    cicada_v1 = load_model("models/cicada-v1")
+    cicada_v2 = load_model("models/cicada-v2")
 
     # Comparison between original and reconstructed inputs
     X_example = X_test[:1]
