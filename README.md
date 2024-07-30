@@ -79,6 +79,13 @@ python3 cicada-training.py
 This script can be run using additional `--epochs` argument controlling the length of the training. 
 
 ---
+## Evaluation
+Plots of the loss functions and performance evaluations of the trained models are run like so
+```
+python3 cicada-evaluation.py
+```
+
+---
 ## Compilation
 We compile `QKeras` model to `C++` using `hls4ml`. The script run a few additional checks to check there agreement between `hls4ml` and `tensorflow` model respective outputs. To run, execute the following:
 ```
