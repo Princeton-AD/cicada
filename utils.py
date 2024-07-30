@@ -26,3 +26,31 @@ class IsValidFile(argparse.Action):
             )
         else:
             setattr(namespace, self.dest, prospective_file)
+
+
+class CreateFolder(argparse.Action):
+    """
+    Custom action: create a new folder if not exist. If the folder
+    already exists, do nothing.
+
+    The action will strip off trailing slashes from the folder's name.
+    """
+
+    def create_folder(self, folder_name):
+        """
+        Create a new directory if not exist. The action might throw
+        OSError, along with other kinds of exception
+        """
+        if not os.path.isdir(folder_name):
+            os.mkdir(folder_name)
+
+        # folder_name = folder_name.rstrip(os.sep)
+        folder_name = os.path.normpath(folder_name)
+        return folder_name
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if type(values) == list:
+            folders = list(map(self.create_folder, values))
+        else:
+            folders = self.create_folder(values)
+        setattr(namespace, self.dest, folders)
