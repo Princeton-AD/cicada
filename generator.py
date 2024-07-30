@@ -22,12 +22,12 @@ class RegionETGenerator:
         X: npt.NDArray,
         y: npt.NDArray,
         batch_size: int,
-        drop_reminder: bool = False,
+        drop_remainder: bool = False,
     ) -> data.Dataset:
         dataset = data.Dataset.from_tensor_slices((X, y))
         return (
             dataset.shuffle(210 * batch_size)
-            .batch(batch_size, drop_remainder=drop_reminder)
+            .batch(batch_size, drop_remainder=drop_remainder)
             .prefetch(data.AUTOTUNE)
         )
 
