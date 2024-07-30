@@ -49,7 +49,7 @@ def main(args):
     for model in [teacher, cicada_v1, cicada_v2]:
         log = pd.read_csv(f"{args.input}/{model.name}/training.log")
         draw.plot_loss_history(
-            log["loss"], log["val_loss"], f"{model.name}-training-history"
+            log["loss"], log["val_loss"], f"training-history-{model.name}"
         )
 
     # Comparison between original and reconstructed inputs
