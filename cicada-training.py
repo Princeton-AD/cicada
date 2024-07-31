@@ -79,7 +79,7 @@ def main(args) -> None:
     outlier_val = gen.get_data(config["exposure"]["validation"])
 
     X_train_student = np.concatenate([X_train, outlier_train])
-    X_val_student = np.concatenate([X_val, outlier_train])
+    X_val_student = np.concatenate([X_val, outlier_val])
 
     teacher = TeacherAutoencoder((18, 14, 1)).get_model()
     teacher.compile(optimizer=Adam(learning_rate=0.001), loss="mse")
