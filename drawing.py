@@ -14,13 +14,22 @@ from typing import List
 
 
 class Draw:
-    def __init__(self, output_dir: Path = Path("plots")):
+    def __init__(self, output_dir: Path = Path("plots"), interactive: bool = False):
         self.output_dir = output_dir
+        self.interactive = interactive
         self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
         hep.style.use("CMS")
 
     def _parse_name(self, name: str) -> str:
         return name.replace(" ", "-").lower()
+
+    def _save_fig(self, name: str) -> None:
+        plt.savefig(
+            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        if self.interactive:
+            plt.show()
+        plt.close()
 
     def plot_loss_history(
         self, training_loss: npt.NDArray, validation_loss: npt.NDArray, name: str
@@ -32,10 +41,7 @@ class Draw:
         plt.legend(loc="upper right")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.savefig(
-            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
-        )
-        plt.close()
+        self._save_fig(name)
 
     def plot_regional_deposits(self, deposits: npt.NDArray, mean: float, name: str):
         im = plt.imshow(
@@ -54,11 +60,7 @@ class Draw:
         plt.xlabel(r"i$\eta$")
         plt.ylabel(r"i$\phi$")
         plt.title(rf"Mean E$_T$ {mean: .2f} ({name})")
-        plt.savefig(
-            f"{self.output_dir}/profiling-mean-deposits-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'profiling-mean-deposits-{name}')
 
     def plot_spacial_deposits_distribution(
         self, deposits: List[npt.NDArray], labels: List[str], name: str
@@ -88,11 +90,7 @@ class Draw:
         ax1.set_xlabel(r"i$\eta$")
         ax2.set_xlabel(r"i$\phi$")
         plt.legend(loc="best")
-        plt.savefig(
-            f"{self.output_dir}/profiling-spacial-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'profiling-spacial-{name}')
 
     def plot_deposits_distribution(
         self, deposits: List[npt.NDArray], labels: List[str], name: str
@@ -160,11 +158,7 @@ class Draw:
         fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
-
-        plt.savefig(
-            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
-        )
-        plt.close()
+        self._save_fig(name)
 
     def plot_anomaly_score_distribution(
         self, scores: List[npt.NDArray], labels: List[str], name: str
@@ -181,10 +175,7 @@ class Draw:
             )
         plt.xlabel(r"Anomaly Score")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        plt.savefig(
-            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
-        )
-        plt.close()
+        self._save_fig(name)
 
     def plot_roc_curve(
         self,
@@ -244,10 +235,7 @@ class Draw:
         plt.xlabel("Trigger Rate (MHz)")
         plt.ylabel("Signal Efficiency")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        plt.savefig(
-            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
-        )
-        plt.close()
+        self._save_fig(name)
 
     def plot_compilation_error(
         self, scores_keras: npt.NDArray, scores_hls4ml: npt.NDArray, name: str
@@ -255,11 +243,7 @@ class Draw:
         plt.scatter(scores_keras, np.abs(scores_keras - scores_hls4ml), s=1)
         plt.xlabel("Anomaly Score, $S$")
         plt.ylabel("Error, $|S_{Keras} - S_{hls4ml}|$")
-        plt.savefig(
-            f"{self.output_dir}/compilation-error-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'compilation-error-{name}')
 
     def plot_compilation_error_distribution(
         self, scores_keras: npt.NDArray, scores_hls4ml: npt.NDArray, name: str
@@ -268,10 +252,7 @@ class Draw:
         plt.xlabel("Error, $S_{Keras} - S_{hls4ml}$")
         plt.ylabel("Number of samples")
         plt.yscale("log")
-        plt.savefig(
-            f"{self.output_dir}/compilation-error-dist-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
+        self._save_fig(f'compilation-error-dist-{name}')
 
     def plot_cpp_model(self, hls_model, name: str):
         hls4ml.utils.plot_model(
@@ -328,11 +309,7 @@ class Draw:
         plt.xlabel("Trigger Rate (MHz)")
         plt.ylabel("Signal Efficiency")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        plt.savefig(
-            f"{self.output_dir}/compilation-roc-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'compilation-roc-{name}')
 
     def plot_output_reference(self):
         with open("misc/output-reference.txt") as f:
@@ -381,11 +358,7 @@ class Draw:
             ncol=4,
             borderaxespad=0,
         )
-        plt.savefig(
-            f"{self.output_dir}/ugt-link-reference.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig('ugt-link-reference')
 
     def plot_results_supervised(
         self, grid: npt.NDArray, models: list[str], datasets: list[str], name: str
@@ -410,8 +383,4 @@ class Draw:
                     color="black",
                     size=16,
                 )
-        plt.savefig(
-            f"{self.output_dir}/supervised-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'supervised-{name}')
