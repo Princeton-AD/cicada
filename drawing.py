@@ -6,6 +6,7 @@ import numpy.typing as npt
 
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
+from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 from pathlib import Path
 from sklearn.metrics import roc_curve, auc
@@ -158,6 +159,19 @@ class Draw:
         fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
+        self._save_fig(name)
+
+    def plot_phi_shift_variance(
+        self, losses: List[float], name: str
+    ):
+        plt.plot(losses)
+        plt.xlabel(r"Shift [$\Delta$ i$\phi$]")
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.ylabel(rf"|$\Delta$|, MSE")
+        plt.axvline(x=0, color='grey', linestyle=':', label='Original')
+        plt.axvline(x=18, color='grey', linestyle=':')
+        plt.axhline(y=losses[0], color='grey', linestyle=':')
+        plt.legend()
         self._save_fig(name)
 
     def plot_anomaly_score_distribution(
