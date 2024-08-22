@@ -70,6 +70,18 @@ def main(args):
         name="comparison-signal",
     )
 
+    # Effect of phi-shifts on anomaly score
+    X_example = X_test[:1]
+    losses = []
+    for i in range(19):
+        X_example_shifted = np.roll(X_example, i, axis=1)
+        y_example_shifted = teacher.predict(X_example_shifted, verbose=args.verbose)
+        losses.append(loss(X_example_shifted, y_example_shifted)[0])
+    draw.plot_phi_shift_variance(
+        losses,
+        name='loss-variance-phi-teacher'
+    )
+
     # Evaluation
     y_pred_background_teacher = teacher.predict(X_test, batch_size=512, verbose=args.verbose)
     y_loss_background_teacher = loss(X_test, y_pred_background_teacher)
