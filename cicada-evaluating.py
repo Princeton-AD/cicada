@@ -26,7 +26,7 @@ def main(args):
 
     config = yaml.safe_load(open(args.config))
 
-    draw = Draw(output_dir=args.output)
+    draw = Draw(output_dir=args.output, interactive=args.interactive)
 
     datasets = [i["path"] for i in config["background"] if i["use"]]
     datasets = [path for paths in datasets for path in paths]
@@ -153,6 +153,12 @@ if __name__ == "__main__":
         type=Path,
         default="plots/",
         help="Path to directory where plots will be stored",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Interactively display plots as they are created",
+        default=False,
     )
     parser.add_argument(
         "--config",
