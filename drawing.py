@@ -44,6 +44,18 @@ class Draw:
         plt.ylabel("Loss")
         self._save_fig(name)
 
+    def plot_loss_histories(
+        self, loss_dict: dict[str, (npt.NDArray, npt.NDArray)], name: str
+    ):
+        for model_name, (train_loss, val_loss) in loss_dict.items():
+            c = next(plt.gca()._get_lines.prop_cycler)['color']
+            plt.plot(np.arange(1, len(train_loss) + 1), train_loss, color=c, label=f"{model_name} (Training)")
+            plt.plot(np.arange(1, len(val_loss) + 1), val_loss, color=c, ls=":", label=f"{model_name} (Validation)")
+        plt.legend(loc="upper right")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        self._save_fig(name)
+
     def plot_regional_deposits(self, deposits: npt.NDArray, mean: float, name: str):
         im = plt.imshow(
             deposits.reshape(18, 14), vmin=0, vmax=deposits.max(), cmap="Purples"
