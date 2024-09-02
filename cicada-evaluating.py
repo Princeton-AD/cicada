@@ -72,7 +72,6 @@ def main(args):
     )
 
     # Effect of phi-shifts on anomaly score
-    from datetime import datetime
     phi_losses = []
     X_example = X_test[:1000]
     for i in tqdm(range(19)):
