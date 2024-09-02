@@ -10,6 +10,7 @@ import pandas as pd
 import yaml
 
 from pathlib import Path
+from tqdm import tqdm
 from tensorflow import data
 from tensorflow.keras.models import load_model
 
@@ -71,16 +72,27 @@ def main(args):
     )
 
     # Effect of phi-shifts on anomaly score
-    X_example = X_test[:1]
-    losses = []
-    for i in range(19):
+    from datetime import datetime
+    phi_losses = []
+    X_example = X_test[:1000]
+    for i in tqdm(range(19)):
         X_example_shifted = np.roll(X_example, i, axis=1)
-        y_example_shifted = teacher.predict(X_example_shifted, verbose=args.verbose)
-        losses.append(loss(X_example_shifted, y_example_shifted)[0])
+        y_example_shifted = teacher.predict(X_example_shifted, batch_size=512, verbose=args.verbose)
+        phi_losses.append(loss(X_example_shifted, y_example_shifted))
+    phi_losses = np.array(phi_losses)
+    for i in range(phi_losses.shape[1]):
+        phi_losses[:, i] = (phi_losses[:, i] - phi_losses[0, i]) / phi_losses[0, i]
+
     draw.plot_phi_shift_variance(
-        losses,
-        name='loss-variance-phi-teacher'
+        phi_losses[:, :1],
+        name='loss-variance-phi-teacher-example'
     )
+
+    draw.plot_phi_shift_variance(
+        phi_losses,
+        name='loss-variance-phi-teacher-average'
+    )
+
 
     # Evaluation
     y_pred_background_teacher = teacher.predict(X_test, batch_size=512, verbose=args.verbose)

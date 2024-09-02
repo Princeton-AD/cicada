@@ -164,13 +164,19 @@ class Draw:
     def plot_phi_shift_variance(
         self, losses: List[float], name: str
     ):
-        plt.plot(losses)
+        x = np.arange(len(losses))
+        loss_means = np.mean(losses, axis=1)
+        plt.plot(x, loss_means)
+        loss_stds =  np.std(losses, axis=1)
+        lower = loss_means - loss_stds / 2
+        upper = loss_means + loss_stds / 2
+        plt.fill_between(x, lower, upper, alpha=0.1)
         plt.xlabel(r"Shift [$\Delta$ i$\phi$]")
         plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.ylabel(rf"|$\Delta$|, MSE")
+        plt.ylabel(r"$\Delta_{rel} (MSE)$")
         plt.axvline(x=0, color='grey', linestyle=':', label='Original')
         plt.axvline(x=18, color='grey', linestyle=':')
-        plt.axhline(y=losses[0], color='grey', linestyle=':')
+        plt.axhline(y=loss_means[0], color='grey', linestyle=':')
         plt.legend()
         self._save_fig(name)
 
