@@ -11,7 +11,7 @@ from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 from pathlib import Path
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
-from typing import List
+from typing import List, Callable
 
 
 class Draw:
@@ -416,3 +416,68 @@ class Draw:
                     size=16,
                 )
         self._save_fig(f'supervised-{name}')
+
+    def make_equivariance_plot(
+        self,
+        image: npt.NDArray,
+        f: Callable[npt.NDArray, npt.NDArray],  # symmetry transformation
+        g: Callable[npt.NDArray, npt.NDArray],  # mapping of the model
+        name: str
+    ):
+        # fig, (ax1, ax2, ax3, cax) = plt.subplots(
+        fig, axs = plt.subplots(
+            nrows=2, ncols=4, figsize=(15, 15), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
+        )
+        max_deposit = image.max()
+
+        # axs[0, 0] = plt.subplot(1, 4, 1)
+        axs[0, 0].get_xaxis().set_visible(False)
+        axs[0, 0].get_yaxis().set_visible(False)
+        axs[0, 0].set_title("Original", fontsize=18)
+        axs[0, 0].imshow(
+            image.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        # axs[0, 1] = plt.subplot(1, 4, 2)
+        axs[0, 1].get_xaxis().set_visible(False)
+        axs[0, 1].get_yaxis().set_visible(False)
+        axs[0, 1].set_title("Reconstructed", fontsize=18)
+        axs[0, 1].imshow(
+            image.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        # axs[0, 2] = plt.subplot(1, 4, 3)
+        axs[0, 2].get_xaxis().set_visible(False)
+        axs[0, 2].get_yaxis().set_visible(False)
+        axs[0, 2].set_title(rf"|$\Delta$|, MSE: ", fontsize=18)
+
+        axs[0, 2].imshow(
+            np.abs(image).reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        # axs[1, 0] = plt.subplot(2, 4, 1)
+        axs[1, 0].get_xaxis().set_visible(False)
+        axs[1, 0].get_yaxis().set_visible(False)
+        axs[1, 0].set_title("Original", fontsize=18)
+        axs[1, 0].imshow(
+            image.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        # axs[1, 1] = plt.subplot(2, 4, 2)
+        axs[1, 1].get_xaxis().set_visible(False)
+        axs[1, 1].get_yaxis().set_visible(False)
+        axs[1, 1].set_title("Reconstructed", fontsize=18)
+        axs[1, 1].imshow(
+            image.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        # axs[1, 2] = plt.subplot(2, 4, 3)
+        axs[1, 2].get_xaxis().set_visible(False)
+        axs[1, 2].get_yaxis().set_visible(False)
+        axs[1, 2].set_title(rf"|$\Delta$|, MSE: ", fontsize=18)
+
+        axs[1, 2].imshow(
+            np.abs(image).reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        self._save_fig(name)
