@@ -71,6 +71,15 @@ def main(args):
         name="comparison-signal",
     )
 
+    # Equivariance plot
+    X_example = X_test[:1]
+    draw.make_equivariance_plot(
+        X_example,
+        f=lambda x: x[:, :, ::-1, :],
+        g=lambda x: teacher.predict(x, verbose=args.verbose),
+        name='equivariance-plot-mirror'
+    )
+
     # Effect of phi-shifts on anomaly score
     phi_losses = []
     X_example = X_test[:1000]
