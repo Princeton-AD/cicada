@@ -425,7 +425,6 @@ class Draw:
         name: str
     ):
 
-        print(f'plot image shape: {image.shape}')
         # fig, (ax1, ax2, ax3, cax) = plt.subplots(
         fig, axs = plt.subplots(
             nrows=2, ncols=4, figsize=(15, 15), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
