@@ -1,6 +1,8 @@
 import argparse
 import os
 
+import numpy as np
+
 
 class IsReadableDir(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -54,3 +56,9 @@ class CreateFolder(argparse.Action):
         else:
             folders = self.create_folder(values)
         setattr(namespace, self.dest, folders)
+
+
+def predict_single_image(model, image):
+    image = np.expand_dims(image, axis=0)
+    pred = model.predict(image, verbose=False)
+    return np.squeeze(pred, axis=0)

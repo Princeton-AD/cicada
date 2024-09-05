@@ -14,7 +14,7 @@ from tqdm import tqdm
 from tensorflow import data
 from tensorflow.keras.models import load_model
 
-from utils import IsValidFile, IsReadableDir, CreateFolder
+from utils import IsValidFile, IsReadableDir, CreateFolder, predict_single_image
 from drawing import Draw
 from generator import RegionETGenerator
 
@@ -69,6 +69,15 @@ def main(args):
         y_example,
         loss=loss(X_example, y_example)[0],
         name="comparison-signal",
+    )
+
+    # Equivariance plot
+    X_example = X_test[0]
+    draw.make_equivariance_plot(
+        X_example,
+        f=lambda x: x[:, ::-1],
+        g=lambda x: predict_single_image(teacher, x),
+        name='equivariance-plot-mirror'
     )
 
     # Effect of phi-shifts on anomaly score
