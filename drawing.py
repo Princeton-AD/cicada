@@ -425,55 +425,64 @@ class Draw:
         name: str
     ):
 
-        # fig, (ax1, ax2, ax3, cax) = plt.subplots(
         fig, axs = plt.subplots(
-            nrows=2, ncols=4, figsize=(15, 15), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
+            nrows=2, ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
         )
         max_deposit = image.max()
+        xmax, ymax, _ = image.shape
 
-        axs[0, 0].get_xaxis().set_visible(False)
-        axs[0, 0].get_yaxis().set_visible(False)
-        axs[0, 0].set_title("Original", fontsize=18)
-        axs[0, 0].imshow(
-            # image.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
-            image, vmin=0, vmax=max_deposit, cmap="Purples"
+        mse_g_1 = float(np.mean((g(image) - image)**2))
+        mse_gf_f = float(np.mean((g(f(image)) - f(image))**2))
+        mse_gf_fg = float(np.mean((g(f(image)) - f(g(image)))**2))
+
+        axs[0, 0].imshow(image, vmin=0, vmax=max_deposit, cmap="Purples")
+        axs[0, 1].imshow(f(image), vmin=0, vmax=max_deposit, cmap="Purples")
+        im = axs[0, 2].imshow(g(f(image)), vmin=0, vmax=max_deposit, cmap="Purples")
+        ip = InsetPosition(axs[0][2], [1.05, 0, 0.05, 1])
+        axs[0][3].set_axes_locator(ip)
+        fig.colorbar(im, cax=axs[0][3], ax=axs[0][:-1]).set_label(
+            label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
 
-        axs[0, 1].get_xaxis().set_visible(False)
-        axs[0, 1].get_yaxis().set_visible(False)
-        axs[0, 1].set_title("Reconstructed", fontsize=18)
-        axs[0, 1].imshow(
-            f(image), vmin=0, vmax=max_deposit, cmap="Purples"
+        axs[1, 0].imshow(image, vmin=0, vmax=max_deposit, cmap="Purples")
+        axs[1, 1].imshow(g(image), vmin=0, vmax=max_deposit, cmap="Purples")
+        im = axs[1, 2].imshow(f(g(image)), vmin=0, vmax=max_deposit, cmap="Purples")
+        ip = InsetPosition(axs[1][2], [1.05, 0, 0.05, 1])
+        axs[1][3].set_axes_locator(ip)
+        fig.colorbar(im, cax=axs[1][3], ax=axs[1][:-1]).set_label(
+            label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
 
-        axs[0, 2].get_xaxis().set_visible(False)
-        axs[0, 2].get_yaxis().set_visible(False)
-        axs[0, 2].set_title(rf"|$\Delta$|, MSE: ", fontsize=18)
+        axs[0, 0].annotate('', xy=(1.4, 0.5), xycoords='axes fraction', 
+                           xytext=(1.0, 0.5), textcoords='axes fraction',
+                           arrowprops=dict(facecolor='black', arrowstyle='->'))
+        axs[0, 0].text(xmax-3.5, ymax/2+1, 'trans', fontsize=18)
 
-        axs[0, 2].imshow(
-            g(f(image)), vmin=0, vmax=max_deposit, cmap="Purples"
-        )
+        axs[0, 1].annotate('', xy=(1.4, 0.5), xycoords='axes fraction', 
+                           xytext=(1.0, 0.5), textcoords='axes fraction',
+                           arrowprops=dict(facecolor='black', arrowstyle='->'))
+        axs[0, 1].text(xmax-3.5, ymax/2+1, 'pred', fontsize=18)
+        axs[0, 1].text(xmax-4, ymax/2+3, rf"MSE: {mse_gf_f:.1f}", fontsize=16)
 
-        axs[1, 0].get_xaxis().set_visible(False)
-        axs[1, 0].get_yaxis().set_visible(False)
-        axs[1, 0].set_title("Original", fontsize=18)
-        axs[1, 0].imshow(
-            image, vmin=0, vmax=max_deposit, cmap="Purples"
-        )
+        axs[1, 0].annotate('', xy=(1.4, 0.5), xycoords='axes fraction', 
+                           xytext=(1.0, 0.5), textcoords='axes fraction',
+                           arrowprops=dict(facecolor='black', arrowstyle='->'))
+        axs[1, 0].text(xmax-3.5, ymax/2+1, 'pred', fontsize=18)
+        axs[1, 0].text(xmax-4, ymax/2+3, rf"MSE: {mse_g_1:.1f}", fontsize=16)
 
-        axs[1, 1].get_xaxis().set_visible(False)
-        axs[1, 1].get_yaxis().set_visible(False)
-        axs[1, 1].set_title("Reconstructed", fontsize=18)
-        axs[1, 1].imshow(
-            g(image), vmin=0, vmax=max_deposit, cmap="Purples"
-        )
+        axs[1, 1].annotate('', xy=(1.4, 0.5), xycoords='axes fraction', 
+                           xytext=(1.0, 0.5), textcoords='axes fraction',
+                           arrowprops=dict(facecolor='black', arrowstyle='->'))
+        axs[1, 1].text(xmax-3.5, ymax/2+1, 'trans', fontsize=18)
 
-        axs[1, 2].get_xaxis().set_visible(False)
-        axs[1, 2].get_yaxis().set_visible(False)
-        axs[1, 2].set_title(rf"|$\Delta$|, MSE: ", fontsize=18)
+        axs[0, 2].annotate('', xy=(0.5, -0.2), xycoords='axes fraction', 
+                           xytext=(0.5, 0), textcoords='axes fraction',
+                           arrowprops=dict(facecolor='black', arrowstyle='<->'))
+        axs[0, 2].text(xmax/2-1.5, ymax+6, rf"MSE: {mse_gf_fg:.2f}", fontsize=16)
 
-        axs[1, 2].imshow(
-            f(g(image)), vmin=0, vmax=max_deposit, cmap="Purples"
-        )
+        for row in axs:
+            for ax in row[:-1]:
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
 
         self._save_fig(name)
