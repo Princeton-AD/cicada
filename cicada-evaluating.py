@@ -14,7 +14,7 @@ from tqdm import tqdm
 from tensorflow import data
 from tensorflow.keras.models import load_model
 
-from utils import IsValidFile, IsReadableDir, CreateFolder
+from utils import IsValidFile, IsReadableDir, CreateFolder, predict_single_image
 from drawing import Draw
 from generator import RegionETGenerator
 
@@ -72,11 +72,11 @@ def main(args):
     )
 
     # Equivariance plot
-    X_example = X_test[:1]
+    X_example = X_test[0]
     draw.make_equivariance_plot(
         X_example,
-        f=lambda x: x[:, :, ::-1, :],
-        g=lambda x: teacher.predict(x, verbose=args.verbose),
+        f=lambda x: x[:, ::-1],
+        g=lambda x: predict_single_image(teacher, x),
         name='equivariance-plot-mirror'
     )
 
