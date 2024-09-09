@@ -120,11 +120,7 @@ class Draw:
             )
         plt.xlabel(r"E$_T$")
         plt.legend(loc="best")
-        plt.savefig(
-            f"{self.output_dir}/profiling-deposits-{self._parse_name(name)}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+        self._save_fig(f'profiling-deposits-{name}')
 
     def plot_reconstruction_results(
         self,
