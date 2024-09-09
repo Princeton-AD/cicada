@@ -12,24 +12,19 @@ from drawing import Draw
 from generator import RegionETGenerator
 from pathlib import Path
 from typing import List
-from utils import IsValidFile
+from utils import IsValidFile, CreateFolder
 
 
-def dataset_profiling(datasets: dict, prefix: str) -> None:
-    draw = Draw()
+def get_deposits(datasets):
     generator = RegionETGenerator()
     deposits, labels = [], []
     for dataset in datasets:
         name = dataset["name"]
         X = generator.get_data(dataset["path"])
         print(f"{name} samples: {X.shape[0]}")
-        draw.plot_regional_deposits(
-            np.mean(X, axis=0).reshape(18, 14), np.mean(X, axis=(0, 1, 2, 3)), name
-        )
         deposits.append(X)
         labels.append(name)
-    draw.plot_spacial_deposits_distribution(deposits, labels, name=f"{prefix}")
-    draw.plot_deposits_distribution(deposits, labels, name=f"{prefix}")
+    return deposits, labels
 
 
 def pprint_acceptance(datasets: dict) -> None:
@@ -40,9 +35,40 @@ def pprint_acceptance(datasets: dict) -> None:
     print(df.to_markdown(index=False))
 
 
-def parse_arguments() -> dict:
+def main(args=None) -> None:
+
+    config = yaml.safe_load(open(args.config))
+
+    draw = Draw(output_dir=args.output, interactive=args.interactive)
+
+    for category, dataset in zip(["Background", "Signal"], [config["background"], config["signal"]]):
+
+        print(f'category = {category}')
+        print(f'dataset = {dataset}')
+
+        deposits, labels = get_deposits(dataset)
+
+        for name, X in zip(labels, deposits):
+            draw.plot_regional_deposits(
+                np.mean(X, axis=0).reshape(18, 14), np.mean(X, axis=(0, 1, 2, 3)), name
+            )
+
+        draw.plot_spacial_deposits_distribution(deposits, labels, name=category)
+        draw.plot_deposits_distribution(deposits, labels, name=category)
+
+    pprint_acceptance(config["signal"])
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="""Profile training and evaluation datasets"""
+    )
+    parser.add_argument(
+        "--output", "-o",
+        action=CreateFolder,
+        type=Path,
+        default="plots/",
+        help="Path to directory where plots will be stored",
     )
     parser.add_argument(
         "--config",
@@ -52,16 +78,10 @@ def parse_arguments() -> dict:
         default="misc/config.yml",
         help="Path to config file",
     )
-    args = parser.parse_args()
-    return yaml.safe_load(open(args.config))
-
-
-def main(args_in=None) -> None:
-    config = parse_arguments()
-    dataset_profiling(config["background"], "Background")
-    dataset_profiling(config["signal"], "Signal")
-    pprint_acceptance(config["signal"])
-
-
-if __name__ == "__main__":
-    main()
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Interactively display plots as they are created",
+        default=False,
+    )
+    main(parser.parse_args())
