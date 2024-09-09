@@ -43,9 +43,6 @@ def main(args=None) -> None:
 
     for category, dataset in zip(["Background", "Signal"], [config["background"], config["signal"]]):
 
-        print(f'category = {category}')
-        print(f'dataset = {dataset}')
-
         deposits, labels = get_deposits(dataset)
 
         for name, X in zip(labels, deposits):
@@ -53,7 +50,7 @@ def main(args=None) -> None:
                 np.mean(X, axis=0).reshape(18, 14), np.mean(X, axis=(0, 1, 2, 3)), name
             )
 
-        draw.plot_spacial_deposits_distribution(deposits, labels, name=category)
+        draw.plot_spacial_deposits_distribution(deposits, labels, name=category, apply_weights=True)
         draw.plot_deposits_distribution(deposits, labels, name=category)
 
     pprint_acceptance(config["signal"])

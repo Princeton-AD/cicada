@@ -76,23 +76,29 @@ class Draw:
         self._save_fig(f'profiling-mean-deposits-{name}')
 
     def plot_spacial_deposits_distribution(
-        self, deposits: List[npt.NDArray], labels: List[str], name: str
+        self, deposits: List[npt.NDArray], labels: List[str], name: str, apply_weights: bool = False
     ):
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
         for deposit, label in zip(deposits, labels):
             bins = np.argwhere(deposit)
             phi, eta = bins[:, 1], bins[:, 2]
+            if apply_weights:
+                weights = deposit[np.nonzero(deposit)]
+            else:
+                weights = np.ones(phi.shape)
             ax1.hist(
                 eta + 4,
+                weights=weights,
                 density=True,
                 facecolor=None,
                 bins=np.arange(4, 19),
                 label=label,
-                histtype="step",
+                histtype="step"
             )
             ax2.hist(
                 phi,
+                weights=weights,
                 density=True,
                 facecolor=None,
                 bins=np.arange(19),
