@@ -158,7 +158,7 @@ def parse_arguments():
 
 
 def main(args_in=None) -> None:
-    args, config = parse_arguments()
+    args = parse_arguments()
     convert(args.filepath, args.savepath, args.calotree, args.acceptance, args.split)
 
 
