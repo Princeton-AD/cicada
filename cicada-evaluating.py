@@ -34,7 +34,6 @@ def main(args):
 
     gen = RegionETGenerator()
     X_train, X_val, X_test = gen.get_data_split(datasets)
-    print(config["signal"])
     X_signal, _ = gen.get_benchmark(config["signal"], filter_acceptance=False)
     gen_train = gen.get_generator(X_train, X_train, 512, True)
     gen_val = gen.get_generator(X_val, X_val, 512)
