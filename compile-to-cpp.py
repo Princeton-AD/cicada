@@ -5,10 +5,8 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import argparse
 import glob
-import h5py
 import hls4ml
 import numpy as np
-import tensorflow as tf
 import yaml
 
 from drawing import Draw
@@ -17,10 +15,7 @@ from hls4ml.model.optimizer import OptimizerPass, register_pass
 from huggingface_hub import from_pretrained_keras
 from generator import RegionETGenerator
 from pathlib import Path
-from sklearn.metrics import roc_curve, auc
 from utils import IsValidFile
-
-from qkeras import *
 
 
 class EliminateLinearActivationCustom(OptimizerPass):
