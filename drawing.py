@@ -15,10 +15,20 @@ from typing import List, Callable
 
 
 class Draw:
-    def __init__(self, output_dir: Path = Path("plots"), interactive: bool = False):
+    def __init__(self, output_dir: Path = Path("plots")):
         self.output_dir = output_dir
-        self.interactive = interactive
         self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
+        self.signals = ["Zero Bias", "SUEP", "HtoLongLived", "VBHFto2C", "TT", "SUSYGGBBH"]
+        self.models_long = ["cicada", "section", "super"]
+        self.models_short = ["cic", "scn", "spr"]
+        self.signals_cmap = {}
+        for key, value in zip(self.signals, self.cmap):
+            self.signals_cmap[key] = value
+        self.models_cmap = {}
+        for key, value in zip(self.models_long, self.cmap):
+            self.models_cmap[key] = value
+        for key, value in zip(self.models_short, self.cmap):
+            self.models_cmap[key] = value
         hep.style.use("CMS")
 
     def _parse_name(self, name: str) -> str:
@@ -33,16 +43,34 @@ class Draw:
         plt.close()
 
     def plot_loss_history(
-        self, training_loss: npt.NDArray, validation_loss: npt.NDArray, name: str
+        self, training_loss: npt.NDArray, validation_loss: npt.NDArray, name: str, ylim = [1.0, 3.0]
     ):
         plt.plot(np.arange(1, len(training_loss) + 1), training_loss, label="Training")
-        plt.plot(
-            np.arange(1, len(validation_loss) + 1), validation_loss, label="Validation"
-        )
+        plt.plot(np.arange(1, len(validation_loss) + 1), validation_loss, label="Validation")
         plt.legend(loc="upper right")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        self._save_fig(name)
+        plt.ylim(ylim[0], ylim[1])
+        plt.savefig(
+            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
+
+    def plot_multiple_loss_history(
+        self, losses, name: str, ylim = [1.0, 3.0]
+    ):
+        nLosses = len(losses)
+        for i in range(nLosses):
+            plt.plot(np.arange(1, len(losses[i][0]) + 1), losses[i][0], label=f"Training, {losses[i][2]}", color=self.cmap[i])
+            plt.plot(np.arange(1, len(losses[i][1]) + 1), losses[i][1], label=f"Validation, {losses[i][2]}", color=self.cmap[i], linestyle="dotted")
+        plt.legend(loc="upper right")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.ylim(ylim[0], ylim[1])
+        plt.savefig(
+            f"{self.output_dir}/{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
 
     def plot_loss_histories(
         self, loss_dict: dict[str, (npt.NDArray, npt.NDArray)], name: str
@@ -56,49 +84,57 @@ class Draw:
         plt.ylabel("Loss")
         self._save_fig(name)
 
+    def plot_deposits(self, deposits: npt.NDArray, name: str):
+        plt.imshow(deposits, vmin=0, vmax = deposits.max(), cmap="Purples")
+        plt.xlabel(r"i$\eta$")
+        plt.ylabel(r"i$\phi$")
+        plt.savefig(
+            f"{self.output_dir}/deposits_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
+
     def plot_regional_deposits(self, deposits: npt.NDArray, mean: float, name: str):
         im = plt.imshow(
-            deposits.reshape(18, 14), vmin=0, vmax=deposits.max(), cmap="Purples"
+            deposits.reshape(6, 14), vmin=0, vmax=deposits.max(), cmap="Purples"
         )
         ax = plt.gca()
         cbar = ax.figure.colorbar(im, ax=ax)
         cbar.ax.set_ylabel(r"Calorimeter E$_T$ deposit (GeV)")
         plt.xticks(np.arange(14), labels=np.arange(4, 18))
         plt.yticks(
-            np.arange(18),
-            labels=np.arange(18)[::-1],
+            np.arange(6),
+            labels=np.arange(6)[::-1],
             rotation=90,
             va="center",
         )
         plt.xlabel(r"i$\eta$")
         plt.ylabel(r"i$\phi$")
         plt.title(rf"Mean E$_T$ {mean: .2f} ({name})")
-        self._save_fig(f'profiling-mean-deposits-{name}')
+        plt.savefig(
+            f"{self.output_dir}/profiling_mean_deposits_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_spacial_deposits_distribution(
-        self, deposits: List[npt.NDArray], labels: List[str], name: str, apply_weights: bool = False
+        self, deposits: List[npt.NDArray], labels: List[str], name: str
     ):
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)
         for deposit, label in zip(deposits, labels):
             bins = np.argwhere(deposit)
             phi, eta = bins[:, 1], bins[:, 2]
-            if apply_weights:
-                weights = deposit[np.nonzero(deposit)]
-            else:
-                weights = np.ones(phi.shape)
             ax1.hist(
                 eta + 4,
-                weights=weights,
                 density=True,
                 facecolor=None,
                 bins=np.arange(4, 19),
                 label=label,
-                histtype="step"
+                histtype="step",
             )
             ax2.hist(
                 phi,
-                weights=weights,
                 density=True,
                 facecolor=None,
                 bins=np.arange(19),
@@ -109,7 +145,11 @@ class Draw:
         ax1.set_xlabel(r"i$\eta$")
         ax2.set_xlabel(r"i$\phi$")
         plt.legend(loc="best")
-        self._save_fig(f'profiling-spacial-{name}')
+        plt.savefig(
+            f"{self.output_dir}/profiling_spacial_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_deposits_distribution(
         self, deposits: List[npt.NDArray], labels: List[str], name: str
@@ -126,7 +166,11 @@ class Draw:
             )
         plt.xlabel(r"E$_T$")
         plt.legend(loc="best")
-        self._save_fig(f'profiling-deposits-{name}')
+        plt.savefig(
+            f"{self.output_dir}/profiling_deposits_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_reconstruction_results(
         self,
@@ -138,7 +182,7 @@ class Draw:
         fig, (ax1, ax2, ax3, cax) = plt.subplots(
             ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
         )
-        max_deposit = max(deposits_in.max(), deposits_out.max())
+        max_deposit = deposits_in.max()
 
         ax1 = plt.subplot(1, 4, 1)
         ax1.get_xaxis().set_visible(False)
@@ -159,7 +203,7 @@ class Draw:
         ax3 = plt.subplot(1, 4, 3)
         ax3.get_xaxis().set_visible(False)
         ax3.get_yaxis().set_visible(False)
-        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18)
+        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .5f}", fontsize=18)
 
         im = ax3.imshow(
             np.abs(deposits_in - deposits_out).reshape(18, 14),
@@ -173,7 +217,62 @@ class Draw:
         fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
-        self._save_fig(name)
+
+        plt.savefig(
+            f"{self.output_dir}/reconstruction_results_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
+
+    def plot_reconstruction_results_scn(
+        self,
+        deposits_in: npt.NDArray,
+        deposits_out: npt.NDArray,
+        loss: float,
+        name: str,
+    ):
+        fig, (ax1, ax2, ax3, cax) = plt.subplots(
+            ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
+        )
+        max_deposit = max(deposits_in.max(), deposits_out.max())
+
+        ax1 = plt.subplot(1, 4, 1)
+        ax1.get_xaxis().set_visible(False)
+        ax1.get_yaxis().set_visible(False)
+        ax1.set_title("Original", fontsize=18)
+        ax1.imshow(
+            deposits_in.reshape(6, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        ax2 = plt.subplot(1, 4, 2)
+        ax2.get_xaxis().set_visible(False)
+        ax2.get_yaxis().set_visible(False)
+        ax2.set_title("Reconstructed", fontsize=18)
+        ax2.imshow(
+            deposits_out.reshape(6, 14), vmin=0, vmax=max_deposit, cmap="Purples"
+        )
+
+        ax3 = plt.subplot(1, 4, 3)
+        ax3.get_xaxis().set_visible(False)
+        ax3.get_yaxis().set_visible(False)
+        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18)
+
+        im = ax3.imshow(
+            np.abs(deposits_in - deposits_out).reshape(6, 14),
+            vmin=0,
+            vmax=max_deposit,
+            cmap="Purples",
+        )
+
+        ip = InsetPosition(ax3, [1.05, 0, 0.05, 1])
+        cax.set_axes_locator(ip)
+        fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
+            label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
+        )
+
+        plt.savefig(
+            f"{self.output_dir}/reconstruction_results_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
 
     def plot_phi_shift_variance(
         self, losses: List[float], name: str
@@ -195,21 +294,30 @@ class Draw:
         self._save_fig(name)
 
     def plot_anomaly_score_distribution(
-        self, scores: List[npt.NDArray], labels: List[str], name: str
+        self, scores: List[npt.NDArray], labels: List[str], name: str, xlim = [0, 256]
     ):
         for score, label in zip(scores, labels):
+            if label in self.signals_cmap: color = self.signals_cmap[label]
+            elif label in self.models_cmap: color = self.models_cmap[label]
+            score_tmp = np.array([])
+            for i in range(score.shape[0]):
+                score_tmp = np.append(score_tmp, score[i].flatten())
             plt.hist(
-                score.reshape((-1)),
+                score_tmp.reshape((-1)),
                 bins=100,
-                range=(0, 256),
+                range=(xlim[0], xlim[1]),
                 density=1,
                 label=label,
                 log=True,
                 histtype="step",
+                color=color,
             )
         plt.xlabel(r"Anomaly Score")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        self._save_fig(name)
+        plt.savefig(
+            f"{self.output_dir}/score_dist_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
 
     def plot_roc_curve(
         self,
@@ -221,8 +329,9 @@ class Draw:
         cv: int = 3,
     ):
         skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-        for y_true, y_pred, label, color, d in zip(
-            y_trues, y_preds, labels, self.cmap, inputs
+        auc_return = []
+        for y_true, y_pred, label, d in zip(
+            y_trues, y_preds, labels, inputs
         ):
             aucs = []
             for _, indices in skf.split(y_pred, y_true):
@@ -232,8 +341,10 @@ class Draw:
 
             fpr, tpr, _ = roc_curve(y_true, y_pred)
             roc_auc = auc(fpr, tpr)
+            auc_return.append([roc_auc, std_auc])
             fpr_base, tpr_base, _ = roc_curve(y_true, np.mean(d**2, axis=(1, 2)))
-
+            if label in self.signals_cmap: color = self.signals_cmap[label]
+            elif label in self.models_cmap: color = self.models_cmap[label]
             plt.plot(
                 fpr * 28.61,
                 tpr,
@@ -269,7 +380,11 @@ class Draw:
         plt.xlabel("Trigger Rate (MHz)")
         plt.ylabel("Signal Efficiency")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        self._save_fig(name)
+        plt.savefig(
+            f"{self.output_dir}/roc_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
+        return np.array(auc_return)
 
     def plot_compilation_error(
         self, scores_keras: npt.NDArray, scores_hls4ml: npt.NDArray, name: str
@@ -277,7 +392,11 @@ class Draw:
         plt.scatter(scores_keras, np.abs(scores_keras - scores_hls4ml), s=1)
         plt.xlabel("Anomaly Score, $S$")
         plt.ylabel("Error, $|S_{Keras} - S_{hls4ml}|$")
-        self._save_fig(f'compilation-error-{name}')
+        plt.savefig(
+            f"{self.output_dir}/compilation_error_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_compilation_error_distribution(
         self, scores_keras: npt.NDArray, scores_hls4ml: npt.NDArray, name: str
@@ -286,14 +405,17 @@ class Draw:
         plt.xlabel("Error, $S_{Keras} - S_{hls4ml}$")
         plt.ylabel("Number of samples")
         plt.yscale("log")
-        self._save_fig(f'compilation-error-dist-{name}')
+        plt.savefig(
+            f"{self.output_dir}/compilation_error_dist_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
 
     def plot_cpp_model(self, hls_model, name: str):
         hls4ml.utils.plot_model(
             hls_model,
             show_shapes=True,
             show_precision=True,
-            to_file=f"{self.output_dir}/cpp-model-{self._parse_name(name)}.png",
+            to_file=f"{self.output_dir}/cpp_model_{self._parse_name(name)}.png",
         )
 
     def plot_roc_curve_comparison(
@@ -343,7 +465,11 @@ class Draw:
         plt.xlabel("Trigger Rate (MHz)")
         plt.ylabel("Signal Efficiency")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        self._save_fig(f'compilation-roc-{name}')
+        plt.savefig(
+            f"{self.output_dir}/compilation_roc_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_output_reference(self):
         with open("misc/output-reference.txt") as f:
@@ -392,7 +518,11 @@ class Draw:
             ncol=4,
             borderaxespad=0,
         )
-        self._save_fig('ugt-link-reference')
+        plt.savefig(
+            f"{self.output_dir}/ugt_link_reference.png",
+            bbox_inches="tight",
+        )
+        plt.close()
 
     def plot_results_supervised(
         self, grid: npt.NDArray, models: list[str], datasets: list[str], name: str
@@ -417,7 +547,207 @@ class Draw:
                     color="black",
                     size=16,
                 )
-        self._save_fig(f'supervised-{name}')
+        plt.savefig(
+            f"{self.output_dir}/supervised_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
+
+    def plot_scatter_score_comparison(
+        self, x: npt.NDArray, y: npt.NDArray, x_title: str, y_title: str, name: str, limits: str = "fit"
+    ):
+        for signal in list(self.signals_cmap.keys()):
+            if signal in name:
+                scatter_color = self.signals_cmap[signal]
+                label = signal
+        x_tmp = np.array([])
+        y_tmp = np.array([])
+        for i in range(len(x)):
+            x_tmp = np.append(x_tmp, x[i].flatten())
+            y_tmp = np.append(y_tmp, y[i].flatten())
+        x_tmp = np.reshape(x_tmp, (-1))
+        y_tmp = np.reshape(y_tmp, (-1))
+        plt.scatter(x_tmp, y_tmp, s=1, color = scatter_color, label = label)
+        if(limits=="equal"):
+            max_val_x = np.sort(np.array([x_tmp, y_tmp]), axis=None)[int(-0.05 * (x_tmp.shape[0]+y_tmp.shape[0]))]
+            max_val_y = max_val_x
+        elif(limits=="fit"):
+            max_val_x = np.sort(np.array([x_tmp]), axis=None)[int(-0.05 * x_tmp.shape[0])]
+            max_val_y = np.sort(np.array([y_tmp]), axis=None)[int(-0.05 * y_tmp.shape[0])]
+        elif(limits=="equalsignal"):
+            max_val_x = 16
+            max_val_y = 16
+        elif(limits=="fitmax"):
+            max_val_x = np.max(np.array([x_tmp]))
+            max_val_y = np.max(np.array([y_tmp]))
+        elif(limits=="fitmaxequal"):
+            max_val_x = np.max(np.array([x_tmp, y_tmp]))
+            max_val_y = max_val_x
+        elif(limits=="equalstudent"):
+            max_val_x = 27
+            max_val_y = 27
+        plt.xlim(0, max_val_x)
+        plt.ylim(0, max_val_y)
+        def f(x, m):
+            return m*x
+        popt, pcov = curve_fit(f, x_tmp, y_tmp)
+        x_line = np.linspace(0, max_val_x)
+        y_line = f(x_line, popt[0])
+        plt.plot(x_line, y_line, color = "black", label = f"m = {popt[0]:.2f}")
+        plt.xlabel(x_title)
+        plt.ylabel(y_title)
+        plt.legend()
+        plt.savefig(
+            f"{self.output_dir}/scatter_score_{self._parse_name(name)}.png",
+            bbox_inches="tight",
+        )
+        plt.close()
+        return popt
+
+    def plot_score_comparison_distributions(
+        self, x: npt.NDArray, x_title: str, y_title: str, name: str, limits: str = "equalsignal"
+    ):
+        if(limits=="equalsignal"):
+            xmax = 5
+            xmin = -5
+        #score_dist = [[], []]
+        diff = [[], []]
+        stats = [[], []]
+        for i in range(len(self.signals)):
+            for j in range(len(self.models_long)-1):
+                diff[j].append(np.array(x[j+1][i]) - np.array(x[0][i]))
+                stats[j].append(norm.fit(diff[j][-1]))
+                #score_dist[j].append([np.std(diff[j][-1]), np.mean(diff[j][-1])])
+        for i in range(len(self.signals)):
+            for j in range(len(self.models_long)-1):
+                color = self.models_cmap[self.models_long[j+1]]
+                label = f"{self.models_long[j+1]}-{self.models_long[0]}: mu = {stats[j][i][0]:.2f}, s = {stats[j][i][1]:.2f}"
+                #label = f"{self.models_long[j+1]}-{self.models_long[0]}: mu = {score_dist[j][i][1]:.2f}, s = {score_dist[j][i][0]:.2f}"
+                plt.hist(diff[j][i], alpha=0.5, bins=100, range=(xmin,xmax), density=1, histtype="step", color=color, label=label)
+            plt.ylim(0, 1.0)
+            plt.xlabel(x_title)
+            plt.ylabel(y_title)
+            plt.legend(loc="upper left")
+            plt.savefig(
+                f"{self.output_dir}/score_comparison_dist_{self.signals[i]}_{self._parse_name(name)}.png",
+                bbox_inches="tight",
+            )
+            plt.close()
+        for i in range(len(self.models_long)-1):
+            for j in range(len(self.signals)):
+                color = self.signals_cmap[self.signals[j]]
+                label = f"{self.signals[j]}: mu = {stats[i][j][0]:.2f}, s = {stats[i][j][1]:.2f}"
+                #label = f"{self.signals[j]}: mu = {score_dist[i][j][1]:.2f}, s = {score_dist[i][j][0]:.2f}"
+                plt.hist(diff[i][j], alpha=0.5, bins=100, range=(xmin,xmax), density=1, histtype="step", color=color, label=label)
+            plt.ylim(0, 1.0)
+            plt.xlabel(x_title)
+            plt.ylabel(y_title)
+            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+            plt.savefig(
+                f"{self.output_dir}/score_comparison_dist_{self.models_short[i+1]}_{self.models_short[0]}_{self._parse_name(name)}.png",
+                bbox_inches="tight",
+            )
+            plt.close()
+        return stats
+
+    def plot_anomaly_scores_distribution(
+        self, score_list: List[List[npt.NDArray]], label_list: List[str], name: str
+    ):
+        for scores, label in zip(score_list, label_list):
+            for score in scores:
+                score_tmp = np.array([])
+                for i in range(len(score)):
+                    score_tmp = np.append(score_tmp, score[i].flatten())
+                plt.hist(
+                    score_tmp.reshape((-1)),
+                    alpha=0.5,
+                    bins=100,
+                    range=(0, 256),
+                    density=1,
+                    label=label,
+                    log=True,
+                    histtype="step",
+                    color=self.signals_cmap[label]
+                )
+        plt.xlabel("Anomaly Score")
+        plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        plt.savefig(
+            f"{self.output_dir}/scores_dist_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
+
+    def plot_mean_sectioned_deposits(
+        self, deposits: npt.NDArray, name: str
+    ):
+        # Assumes deposits.shape is (-1, 3, 6, 14, 1)
+        deposits = np.mean(deposits, axis=0)
+        deposits = np.reshape(deposits, (18, 14))
+        plt.imshow(
+            deposits, vmin=0, vmax=np.max(deposits), cmap="Purples"
+        )
+        plt.title("Mean ET")
+        plt.xlabel("Eta")
+        plt.ylabel("Phi")
+        plt.savefig(
+            f"{self.output_dir}/mean_deposits_scn_{self._parse_name(name)}.png", bbox_inches="tight"
+        )
+        plt.close()
+
+    def plot_mse(
+        self, mse: npt.NDArray, bottleneck_sizes: npt.NDArray,
+    ):
+        # mse has shape (model type, signal type, bottleneck size, 2)
+        for i in range(mse.shape[1]):
+            for j in range(mse.shape[0]):
+                plt.plot(bottleneck_sizes[0], mse[j,i,:,0], color = self.models_cmap[self.models_long[j]], label = self.models_long[j])
+                #plt.errorbar(bottleneck_sizes[0], mse[j,i,:,0], yerr = mse[j,i,:,1], color = self.models_cmap[self.models_long[j]], label = self.models_long[j])
+            plt.title(f"MSE ({self.signals[i]}) vs Latent Space")
+            plt.xlabel("Latent Space")
+            plt.ylabel("MSE")
+            plt.legend()
+            plt.savefig(
+                f"{self.output_dir}/mse_{self._parse_name(self.signals[i])}.png", bbox_inches="tight"
+            )
+            plt.close()
+        for i in range(mse.shape[0]):
+            for j in range(mse.shape[1]):
+                plt.plot(bottleneck_sizes[0], mse[i,j,:,0], color = self.signals_cmap[self.signals[j]], label = self.signals[j])
+                #plt.errorbar(bottleneck_sizes[0], mse[i,j,:,0], yerr = mse[i,j,:,1], color = self.signals_cmap[self.signals[j]], label = self.signals[j])
+            plt.title(f"MSE ({self.models_long[i]}) vs Latent Space")
+            plt.xlabel("Latent Space")
+            plt.ylabel("MSE")
+            plt.legend()
+            plt.savefig(
+                f"{self.output_dir}/mse_{self._parse_name(self.models_short[i])}.png", bbox_inches="tight"
+            )
+            plt.close()
+
+    def plot_auc(
+        self, auc: npt.NDArray, bottleneck_sizes: npt.NDArray,
+    ):
+        # auc has shape (signal type, model type, bottleneck size, 2)
+        for i in range(auc.shape[1]):
+            for j in range(auc.shape[0]):
+                plt.errorbar(bottleneck_sizes[0], auc[j,i,:,0], yerr = auc[j,i,:,1], color = self.models_cmap[self.models_long[j]], label = self.models_long[j])
+            plt.title(f"AUC ({self.signals[i]}) vs Latent Space")
+            plt.xlabel("Latent Space")
+            plt.ylabel("AUC")
+            plt.legend()
+            plt.savefig(
+                f"{self.output_dir}/AUC_{self._parse_name(self.signals[i+1])}.png", bbox_inches="tight"
+            )
+            plt.close()
+        for i in range(auc.shape[0]):
+            for j in range(auc.shape[1]):
+                plt.errorbar(bottleneck_sizes[0], auc[i,j,:,0], yerr = auc[i,j,:,1] , color = self.signals_cmap[self.signals[j+1]], label = self.signals[j+1])
+            plt.title(f"AUC ({self.models_long[i]}) vs Latent Space")
+            plt.xlabel("Latent Space")
+            plt.ylabel("AUC")
+            plt.legend()
+            plt.savefig(
+                f"{self.output_dir}/AUC_{self._parse_name(self.models_short[i])}.png", bbox_inches="tight"
+            )
+            plt.close()
 
     def make_equivariance_plot(
         self,
