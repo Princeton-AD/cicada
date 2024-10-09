@@ -577,7 +577,7 @@ class Draw:
 
         def _draw_angle_arcs(ax_, theta_=65, phi_=45):
             # Draw beam  axis
-            ax_.plot((0, 1), (0, 0), (0, 0), color='black')
+            ax_.plot((-0.2, 1.2), (0, 0), (0, 0), color='black')
             # ax_.text(0, 0, 0, 'Beam Axis', color='black', fontsize=12)
 
             # Define a point on the surface of the cylinder
@@ -638,6 +638,7 @@ class Draw:
         )
 
         fig = plt.figure(figsize=(12, 6))
+        fig.subplots_adjust(left=0, bottom=0.05, right=1, top=0.95, wspace=None, hspace=0.1)
 
         ax1 = fig.add_subplot(spec[0], projection='3d')
         ax2 = fig.add_subplot(spec[1])
@@ -708,7 +709,7 @@ class Draw:
             plt.show()
         else:
             ani.save(
-                f"{self.output_dir}/{self._parse_name(name)}.mp4"
+                f"{self.output_dir}/{self._parse_name(name)}.gif"
             )
 
         plt.close()
