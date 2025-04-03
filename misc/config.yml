@@ -34,7 +34,7 @@ signal:
    use: True
  - path:
    - '/eos/project/c/cicada-project/data/2023/Signal/VBFHto2C.h5'
-   name: 'VBHFto2C'
+   name: 'VBFHto2C'
    use: True
  - path:
    - '/eos/project/c/cicada-project/data/2023/Signal/TT.h5'

@@ -1,17 +1,23 @@
+from pathlib import Path
+from typing import List, Callable
+
 import hls4ml
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import numpy.typing as npt
 
+from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 from matplotlib.ticker import MaxNLocator
+from matplotlib import gridspec
+from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
-from pathlib import Path
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
-from typing import List, Callable
+
+from utils import get_fractions_above_threshold
 
 
 class Draw:
@@ -19,6 +25,7 @@ class Draw:
         self.output_dir = output_dir
         self.interactive = interactive
         self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
+        self.model_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
         hep.style.use("CMS")
 
     def _parse_name(self, name: str) -> str:
@@ -56,7 +63,9 @@ class Draw:
         plt.ylabel("Loss")
         self._save_fig(name)
 
-    def plot_regional_deposits(self, deposits: npt.NDArray, mean: float, name: str):
+    def plot_regional_deposits(
+        self, deposits: npt.NDArray, mean: float, name: str, is_data: bool = False,
+    ):
         im = plt.imshow(
             deposits.reshape(18, 14), vmin=0, vmax=deposits.max(), cmap="Purples"
         )
@@ -72,7 +81,18 @@ class Draw:
         )
         plt.xlabel(r"i$\eta$")
         plt.ylabel(r"i$\phi$")
-        plt.title(rf"Mean E$_T$ {mean: .2f} ({name})")
+
+        if is_data:
+            hep.cms.text('Preliminary', ax=ax, pad=0.05)
+        else:
+            hep.cms.text('Simulation Preliminary', ax=ax, pad=0.05)
+
+        # verbose title
+        hep.cms.lumitext(rf'$<E_T> = {mean: .2f}$; {name} (13 TeV)', ax=ax)
+
+        # short title
+        # hep.cms.lumitext('2023 (13 TeV)', ax=ax)
+
         self._save_fig(f'profiling-mean-deposits-{name}')
 
     def plot_spacial_deposits_distribution(
@@ -112,7 +132,7 @@ class Draw:
         self._save_fig(f'profiling-spacial-{name}')
 
     def plot_deposits_distribution(
-        self, deposits: List[npt.NDArray], labels: List[str], name: str
+        self, deposits: List[npt.NDArray], labels: List[str], name: str,
     ):
         for deposit, label in zip(deposits, labels):
             plt.hist(
@@ -128,38 +148,78 @@ class Draw:
         plt.legend(loc="best")
         self._save_fig(f'profiling-deposits-{name}')
 
+    def plot_cell_means(
+        self, deposits: npt.NDArray, name: str
+    ):
+        d = np.squeeze(deposits, axis=-1)
+        means = np.mean(d, axis=0)
+        stds = np.std(d, axis=0)
+        sems = stds / np.sqrt(d.shape[0])
+
+        x = np.arange(36)
+
+        for eta in range(7):
+            m = np.concatenate([means[:, eta], means[:, 13-eta]])
+            s = np.concatenate([sems[:, eta], sems[:, 13-eta]])
+            l = m - s
+            u = m + s
+            plt.plot(x, m)
+            plt.xlabel(r"i$\phi$")
+            plt.ylabel(r"Mean E$_T$ deposit (GeV)")
+            plt.fill_between(x, l, u, alpha=0.1, label=f'$i\eta={eta}$')
+        plt.axvline(x=17.5, ls=':', color='grey', alpha=0.5)
+        plt.gca().set_xticks(np.arange(36)[::2], np.concatenate([np.arange(18), np.arange(18)])[::2])
+        plt.legend(ncols=2)
+        self._save_fig(f'profiling-deposits-{name}')
+
+    def plot_cell_dists(
+        self, deposits: npt.NDArray, name: str
+    ):
+        bins = np.arange(20) - 0.5
+        d = np.squeeze(deposits, axis=-1)
+        for eta in range(1):
+            for phi in range(2):
+                ets = d[:, phi, eta]
+                plt.hist(ets, bins, alpha=0.5, label=f'i\phi = {phi}')
+            plt.legend()
+            self._save_fig(f'et-dist-region-eta-{eta}')
+
     def plot_reconstruction_results(
         self,
         deposits_in: npt.NDArray,
         deposits_out: npt.NDArray,
         loss: float,
         name: str,
+        is_data: bool = False,
     ):
         fig, (ax1, ax2, ax3, cax) = plt.subplots(
             ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
         )
         max_deposit = max(deposits_in.max(), deposits_out.max())
 
-        ax1 = plt.subplot(1, 4, 1)
+        if is_data:
+            hep.cms.text('Preliminary', ax=ax1, fontsize=18)
+        else:
+            hep.cms.text('Simulation Preliminary', ax=ax1, fontsize=18)
+        hep.cms.lumitext('2023 (13 TeV)', ax=ax3, fontsize=18)
+
         ax1.get_xaxis().set_visible(False)
         ax1.get_yaxis().set_visible(False)
-        ax1.set_title("Original", fontsize=18)
+        ax1.set_title("Original", fontsize=18, y=-0.1)
         ax1.imshow(
             deposits_in.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
         )
-
-        ax2 = plt.subplot(1, 4, 2)
+        
         ax2.get_xaxis().set_visible(False)
         ax2.get_yaxis().set_visible(False)
-        ax2.set_title("Reconstructed", fontsize=18)
+        ax2.set_title("Reconstructed", fontsize=18, y=-0.1)
         ax2.imshow(
             deposits_out.reshape(18, 14), vmin=0, vmax=max_deposit, cmap="Purples"
         )
 
-        ax3 = plt.subplot(1, 4, 3)
         ax3.get_xaxis().set_visible(False)
         ax3.get_yaxis().set_visible(False)
-        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18)
+        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18, y=-0.1)
 
         im = ax3.imshow(
             np.abs(deposits_in - deposits_out).reshape(18, 14),
@@ -173,6 +233,28 @@ class Draw:
         fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
+        self._save_fig(name)
+
+    def plot_individual_image(
+        self,
+        deposits: npt.NDArray,
+        name: str,
+    ):
+
+        im = plt.imshow(
+            deposits.reshape(18, 14), vmin=0, vmax=deposits.max(), cmap="Purples"
+        )
+
+        ax = plt.gca()
+        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar.set_ticks([])
+        cbar.ax.set_ylabel(r"Energy deposit")
+        plt.xticks([])
+        plt.yticks([])
+        ax.tick_params(length=0, width=0)
+        plt.xlabel(r"i$\eta$")
+        plt.ylabel(r"i$\phi$")
+ 
         self._save_fig(name)
 
     def plot_phi_shift_variance(
@@ -219,8 +301,13 @@ class Draw:
         inputs: List[npt.NDArray],
         name: str,
         cv: int = 3,
+        baseline: str = 'mean'
     ):
         skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+        base_line_alg = {
+            'mean': lambda x: np.mean(x**2, axis=(1, 2)),
+            'max': lambda x: np.max(x**2, axis=(1, 2))
+        }[baseline]
         for y_true, y_pred, label, color, d in zip(
             y_trues, y_preds, labels, self.cmap, inputs
         ):
@@ -232,7 +319,7 @@ class Draw:
 
             fpr, tpr, _ = roc_curve(y_true, y_pred)
             roc_auc = auc(fpr, tpr)
-            fpr_base, tpr_base, _ = roc_curve(y_true, np.mean(d**2, axis=(1, 2)))
+            fpr_base, tpr_base, _ = roc_curve(y_true, base_line_alg(d))
 
             plt.plot(
                 fpr * 28.61,
@@ -487,4 +574,231 @@ class Draw:
                 ax.get_xaxis().set_visible(False)
                 ax.get_yaxis().set_visible(False)
 
+        self._save_fig(name)
+
+
+    def make_unrolling_plot(self, deposits: npt.NDArray, name: str, make_animation=False):
+
+        def _draw_angle_arcs(ax_, theta_=65, phi_=45):
+            # Draw beam  axis
+            ax_.plot((-0.2, 1.2), (0, 0), (0, 0), color='black')
+            # ax_.text(0, 0, 0, 'Beam Axis', color='black', fontsize=12)
+
+            # Define a point on the surface of the cylinder
+            # Choose a specific angle (for example, 45 degrees) and height (for example, half the height)
+            my_phi = np.deg2rad(phi_)
+            my_theta = np.deg2rad(theta_)
+            surface_height = n_eta / 2
+
+            # Coordinates of the point on the surface
+            r = 1 / np.sin(my_theta)
+            x_surface = r * np.sin(my_theta) * np.cos(my_phi)
+            y_surface = r * np.sin(my_theta) * np.sin(my_phi)
+            z_surface = r * np.cos(my_theta)
+
+            # Draw red arrows
+            ax_.quiver(0.5, 0, 0, z_surface, x_surface, y_surface, color='r', arrow_length_ratio=0.1)
+            ax_.quiver(0.5+z_surface, 0, 0, 0, x_surface, y_surface, color='r', arrow_length_ratio=0.1, linestyle=':')
+
+            # Draw labeled archs for the angles
+            angle_radius = 0.3
+            phis = np.linspace(my_phi, np.pi, 100)
+            if abs(my_phi) > np.pi:
+                phis = np.linspace(np.pi, my_phi+2*np.pi, 100)
+            phi_arc_x = angle_radius * np.cos(phis)
+            phi_arc_y = angle_radius * np.sin(phis)
+            phi_arc_z = np.ones_like(phi_arc_x) * r * np.cos(my_theta) + 0.5
+            ax_.plot(phi_arc_z, phi_arc_x, phi_arc_y, color='blue', linewidth=2, label='Polar Angle')
+            ax_.text(phi_arc_z[0], phi_arc_x[0], phi_arc_y[0], r"$\phi$", color='blue', fontsize=18)
+
+            theta_arc_grid = np.linspace(0, my_theta, 100)
+            theta_arc_x = angle_radius * np.sin(theta_arc_grid) * np.cos(my_phi)
+            theta_arc_y = angle_radius * np.sin(theta_arc_grid) * np.sin(my_phi)
+            theta_arc_z = angle_radius * np.cos(theta_arc_grid) + 0.5
+            ax_.plot(theta_arc_z, theta_arc_x, theta_arc_y, color='blue', linewidth=2, label='Polar Angle')
+            ax_.text(theta_arc_z[50], theta_arc_x[50], theta_arc_y[50], r"$\theta$", color='blue', fontsize=18)
+
+        def _draw_red_square(ax_, i_eta, i_phi):
+            for r in ax_.patches:
+                r.remove()
+            rect = Rectangle((i_eta-0.5, i_phi-0.5), 1, 1, linewidth=2, edgecolor='r', facecolor='none')
+            ax_.add_patch(rect)
+            
+        # Define the grid dimensions (cylinder height and unrolled grid size)
+        n_phi, n_eta = deposits.shape
+
+        # Create cylindrical coordinates for the 3D plot
+        theta = np.linspace(0, 2 * np.pi, n_phi)  # Circumference angles
+        z_cyl = np.linspace(0, 1, n_eta)  # Height values
+        Z_cyl, Theta = np.meshgrid(z_cyl, theta)
+
+        # Convert cylindrical coordinates to Cartesian for plotting
+        X_cyl = np.cos(Theta)  # X-coordinates on cylinder's surface (for circular shape)
+        Y_cyl = np.sin(Theta)  # Y-coordinates on cylinder's surface
+
+        spec = gridspec.GridSpec(
+            ncols=2, nrows=1,
+            width_ratios=[2, 1.8], wspace=0.1,
+        )
+
+        fig = plt.figure(figsize=(12, 6))
+        fig.subplots_adjust(left=0, bottom=0.05, right=1, top=0.95, wspace=None, hspace=0.1)
+
+        ax1 = fig.add_subplot(spec[0], projection='3d')
+        ax2 = fig.add_subplot(spec[1])
+
+        # Initial plot for the cylinder
+        surf = ax1.plot_surface(Z_cyl, X_cyl, Y_cyl, facecolors=plt.cm.Purples(deposits), 
+                                rstride=1, cstride=1, alpha=0.6, linewidth=0)
+        ax1.set_title('CMS Calorimeter (Schematic)', fontsize=18)
+        ax1.set_axis_off() 
+        ax1.view_init(elev=30, azim=-60)
+        ax1.dist = 8
+
+        _draw_angle_arcs(ax1, phi_=45)
+
+        # Initial plot for the unrolled grid
+        im = ax2.imshow(deposits, cmap='Purples', aspect='auto')
+        ax2.set_title('Unrolled Input', fontsize=18)
+        ax2.set_xlabel(r"i$\eta$", fontsize=18)
+        ax2.set_ylabel(r"i$\phi$", fontsize=18)
+
+        # Draw red square in unrolled image
+        _draw_red_square(ax2, 12, 6)
+
+        cbar = ax2.figure.colorbar(im, ax=ax2)
+        cbar.set_ticks([])
+        cbar.ax.set_ylabel(r"Energy deposit", fontsize=18)
+        plt.xticks([])
+        plt.yticks([])
+
+        if not make_animation:
+            self._save_fig(name)
+            return
+
+        rate_3d = 4
+        n_frames = n_phi * rate_3d
+
+        def update(frame):
+            # Update the angle of the cylinder
+            angle = (-1) * frame * (2 * np.pi / n_frames)  # Total 100 frames for one full rotation
+            new_theta = theta + angle  # Shift angles for the cylinder surface
+
+            # new_Theta, _ = np.meshgrid(new_theta, z_cyl)
+            _, new_Theta = np.meshgrid(z_cyl, new_theta)
+
+            # Update the cylinder surface with new theta
+            X_cyl_new = np.cos(new_Theta)  # New X-coordinates
+            Y_cyl_new = np.sin(new_Theta)  # New Y-coordinates
+
+            ax1.cla()  # Clear the previous plot
+            ax1.plot_surface(Z_cyl, X_cyl_new, Y_cyl_new, facecolors=plt.cm.Purples(deposits), 
+                             rstride=1, cstride=1, alpha=0.6, linewidth=0)
+            ax1.set_axis_off() 
+            ax1.set_title('CMS Calorimeter (Schematic)', fontsize=18)
+            _draw_angle_arcs(ax1, phi_=np.rad2deg(angle)+45)
+
+            # Update the unrolled image based on the rolling motion
+            if (frame % rate_3d) == 0:
+                shift = int(frame / rate_3d) % n_phi  # Shift amount for unrolled grid
+                shifted_Z = np.roll(deposits, shift, axis=0)  # Apply circular permutation along y-axis
+                im.set_array(shifted_Z)  # Update the image
+
+                _draw_red_square(ax2, 12, (6+shift) % n_phi)
+
+        # Create the animation
+        ani = FuncAnimation(fig, update, frames=n_frames, blit=False, interval=100)
+
+        if self.interactive:
+            plt.show()
+        else:
+            ani.save(
+                f"{self.output_dir}/{self._parse_name(name)}.gif"
+            )
+
+        plt.close()
+
+
+    def plot_rate_vs_threshold(
+        self,
+        scores: List[npt.NDArray],
+        baseline_scores: List[npt.NDArray],
+        labels: List[str],
+        category_labels: tuple[str] = ("Before", "After"),
+        name: str = "trigger-rate",
+        ylabel: str = "Trigger Rate [kHz]",
+    ):
+        """
+        Plot the trigger rate vs threshold for different versions of the model including a ratio plot.
+        Args:
+            scores: List of arrays, each containing the ZB anomaly scores a model.
+            labels: List of labels for each model.
+            name: Name for the output figure.
+            baseline_scores: list of baseline scores for comparison.
+            category_labels: Optional two-tuple of category labels for the second legend.
+            ylabel: Optional alternative Y-axis label.
+        """
+        # Create figure with GridSpec for subplot control
+        fig = plt.figure(figsize=(10, 8))
+        gs = gridspec.GridSpec(2, 1, height_ratios=[3, 1], hspace=0.05)
+        
+        # Create main plot and ratio plot with shared x-axis
+        ax_main = fig.add_subplot(gs[0])
+        ax_ratio = fig.add_subplot(gs[1], sharex=ax_main)
+                
+        # plot main lines        
+        for i, (s, b, l, c) in enumerate(zip(scores, baseline_scores, labels, self.model_colors)):
+            thresholds, fractions = get_fractions_above_threshold(s)
+            baseline_thresholds, baseline_fractions = get_fractions_above_threshold(b)
+            
+            ax_main.plot(thresholds, fractions * 28610, ls='-', label=l, color=c)
+            ax_main.plot(baseline_thresholds, baseline_fractions * 28610, ls='--', color=c)
+                        
+            # For ratio plot, we need to interpolate to get values at the same thresholds
+            # Let's create a common x-axis (ratio_thresholds) for interpolation
+            min_threshold = max(min(thresholds), min(baseline_thresholds))
+            max_threshold = min(max(thresholds), max(baseline_thresholds))
+            ratio_thresholds = np.linspace(min_threshold, max_threshold, 100)
+            
+            # Interpolate rates for before and after at these thresholds
+            before_interp = np.interp(ratio_thresholds, thresholds, fractions)
+            after_interp = np.interp(ratio_thresholds, baseline_thresholds, baseline_fractions)
+            
+            # Calculate and plot ratio
+            ratio = before_interp / after_interp
+            ax_ratio.plot(ratio_thresholds, ratio, color=c)
+                            
+        first_legend = ax_main.legend(loc='upper right')
+        ax_main.add_artist(first_legend)
+
+        if category_labels is not None:
+            category_handles = [
+                Line2D([0], [0], color='grey', linestyle='-', lw=2),
+                Line2D([0], [0], color='grey', linestyle='--', lw=2)
+            ]
+            # Add second legend (styles in grey)
+            ax_main.legend(category_handles, category_labels, loc='lower left')
+        
+        # Set log scale for main plot
+        ax_main.set_yscale("log")
+        ax_main.set_ylabel(ylabel)
+        ax_main.grid(True, linestyle='--', alpha=0.7)
+        
+        # Remove x-ticks from main plot (will be in ratio plot)
+        plt.setp(ax_main.get_xticklabels(), visible=False)
+        
+        # Configure ratio plot
+        ax_ratio.axhline(y=1.0, color='black', linestyle='-', alpha=0.5)  # Reference line at ratio = 1
+        ax_ratio.set_ylabel("Ratio")
+        ax_ratio.set_xlabel("Score Threshold")
+        ax_ratio.grid(True, linestyle='--', alpha=0.7)
+        
+        # Set reasonable y-limits for ratio plot
+        ax_ratio.set_yscale("log")
+        
+        # Add CMS text to main plot
+        hep.cms.text('Preliminary', loc=0, ax=ax_main)
+        hep.cms.lumitext(r'2024 (13.6 TeV)', ax=ax_main)
+        
+        plt.tight_layout()
         self._save_fig(name)

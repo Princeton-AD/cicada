@@ -5,10 +5,8 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import argparse
 import glob
-import h5py
 import hls4ml
 import numpy as np
-import tensorflow as tf
 import yaml
 
 from drawing import Draw
@@ -17,10 +15,7 @@ from hls4ml.model.optimizer import OptimizerPass, register_pass
 from huggingface_hub import from_pretrained_keras
 from generator import RegionETGenerator
 from pathlib import Path
-from sklearn.metrics import roc_curve, auc
-from utils import IsValidFile
-
-from qkeras import *
+from utils import IsValidFile, CreateFolder
 
 
 class EliminateLinearActivationCustom(OptimizerPass):
@@ -77,7 +72,7 @@ def convert_to_hls4ml_model(keras_model, hls_config, version="1.0.0"):
     return hls_model
 
 
-def testing(keras_model, hls_model, dataset_signals, dataset_background, version):
+def testing(keras_model, hls_model, dataset_signals, dataset_background, output_dir, interactive):
     scores = {"scores_hls4ml": {}, "scores_keras": {}}
     for dataset_name, test_vectors in dataset_signals.items():
         test_vectors = test_vectors.reshape(-1, 252)
@@ -95,7 +90,7 @@ def testing(keras_model, hls_model, dataset_signals, dataset_background, version
     scores_keras = np.concatenate(list(scores["scores_keras"].values()))
 
     # Generate plots
-    draw = Draw()
+    draw = Draw(output_dir=output_dir, interactive=interactive)
     name = keras_model.name
     draw.plot_compilation_error(scores_keras, scores_hls4ml, name)
     draw.plot_compilation_error_distribution(scores_keras, scores_hls4ml, name)
@@ -111,25 +106,9 @@ def cleanup():
         os.remove(f)
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="""Convert QKeras model to hls4ml model"""
-    )
-    parser.add_argument(
-        "--config",
-        "-c",
-        action=IsValidFile,
-        type=Path,
-        default="misc/config.yml",
-        help="Path to config file",
-    )
-    parser.add_argument("-v", "--version", type=str, help="CICADA version")
-    args = parser.parse_args()
-    return yaml.safe_load(open(args.config)), args.version
+def main(args) -> None:
 
-
-def main(args_in=None) -> None:
-    config, version = parse_arguments()
+    config = yaml.safe_load(open(args.config))
 
     # Workaround for linear activation layer removal
     hls4ml.model.flow.flow.update_flow(
@@ -144,14 +123,14 @@ def main(args_in=None) -> None:
 
     # Load QKeras model
     keras_model = from_pretrained_keras(
-        "cicada-project/cicada-v{}".format(".".join(version.split(".")[:-1]))
+        "cicada-project/cicada-v{}".format(".".join(args.version.split(".")[:-1]))
     )
 
     # Genrate hls4ml config
-    hls_config = get_hls_config(keras_model, version)
+    hls_config = get_hls_config(keras_model, args.version)
 
     # Genrate hls4ml model
-    hls_model = convert_to_hls4ml_model(keras_model, hls_config, version)
+    hls_model = convert_to_hls4ml_model(keras_model, hls_config, args.version)
 
     # Gather evaluation datasets
     datasets = [i["path"] for i in config["background"] if i["use"]]
@@ -161,10 +140,35 @@ def main(args_in=None) -> None:
     dataset_signal, _ = gen.get_benchmark(config["signal"], filter_acceptance=False)
 
     # Final tests of the final configuration
-    testing(keras_model, hls_model, dataset_signal, dataset_background, version)
+    testing(keras_model, hls_model, dataset_signal, dataset_background, args.output, args.interactive)
 
     cleanup()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="""Convert QKeras model to hls4ml model"""
+    )
+    parser.add_argument(
+        "--output", "-o",
+        action=CreateFolder,
+        type=Path,
+        default="plots/",
+        help="Path to directory where plots will be stored",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Interactively display plots as they are created",
+        default=False,
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
+        action=IsValidFile,
+        type=Path,
+        default="misc/config.yml",
+        help="Path to config file",
+    )
+    parser.add_argument("-v", "--version", type=str, help="CICADA version")
+    main(parser.parse_args())

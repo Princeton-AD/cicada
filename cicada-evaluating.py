@@ -43,15 +43,22 @@ def main(args):
     X_train_student = np.concatenate([X_train, outlier_train])
     X_val_student = np.concatenate([X_val, outlier_train])
 
-    teacher = load_model(f"{args.input}/teacher")
-    cicada_v1 = load_model(f"{args.input}/cicada-v1")
-    cicada_v2 = load_model(f"{args.input}/cicada-v2")
+    if args.huggingface:
+        from huggingface_hub import from_pretrained_keras
+        teacher = from_pretrained_keras("cicada-project/teacher-v.0.1")
+        cicada_v1 = from_pretrained_keras("cicada-project/cicada-v1.1")
+        cicada_v2 = from_pretrained_keras("cicada-project/cicada-v2.1")
 
-    for model in [teacher, cicada_v1, cicada_v2]:
-        log = pd.read_csv(f"{args.input}/{model.name}/training.log")
-        draw.plot_loss_history(
-            log["loss"], log["val_loss"], f"training-history-{model.name}"
-        )
+    else:
+        teacher = load_model(f"{args.input}/teacher")
+        cicada_v1 = load_model(f"{args.input}/cicada-v1")
+        cicada_v2 = load_model(f"{args.input}/cicada-v2")
+
+        for model in [teacher, cicada_v1, cicada_v2]:
+            log = pd.read_csv(f"{args.input}/{model.name}/training.log")
+            draw.plot_loss_history(
+                log["loss"], log["val_loss"], f"training-history-{model.name}"
+            )
 
     # Comparison between original and reconstructed inputs
     X_example = X_test[:1]
@@ -205,6 +212,12 @@ if __name__ == "__main__":
         "--verbose",
         action="store_true",
         help="Output verbosity",
+        default=False,
+    )
+    parser.add_argument(
+        "--huggingface",
+        action="store_true",
+        help="Use models from huggingface",
         default=False,
     )
     main(parser.parse_args())
