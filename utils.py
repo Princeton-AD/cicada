@@ -62,3 +62,10 @@ def predict_single_image(model, image):
     image = np.expand_dims(image, axis=0)
     pred = model.predict(image, verbose=False)
     return np.squeeze(pred, axis=0)
+
+
+def get_fractions_above_threshold(scores):
+    thresholds = scores.flatten()
+    thresholds.sort()
+    fractions = np.linspace(1, 0, len(thresholds))
+    return thresholds, fractions

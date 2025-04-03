@@ -1,20 +1,23 @@
+from pathlib import Path
+from typing import List, Callable
+
 import hls4ml
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import numpy.typing as npt
 
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.ticker import MaxNLocator
 from matplotlib import gridspec
+from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
-from pathlib import Path
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
-from typing import List, Callable
+
+from utils import get_fractions_above_threshold
 
 
 class Draw:
@@ -22,6 +25,7 @@ class Draw:
         self.output_dir = output_dir
         self.interactive = interactive
         self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
+        self.model_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
         hep.style.use("CMS")
 
     def _parse_name(self, name: str) -> str:
@@ -713,3 +717,88 @@ class Draw:
             )
 
         plt.close()
+
+
+    def plot_rate_vs_threshold(
+        self,
+        scores: List[npt.NDArray],
+        baseline_scores: List[npt.NDArray],
+        labels: List[str],
+        category_labels: tuple[str] = ("Before", "After"),
+        name: str = "trigger-rate",
+        ylabel: str = "Trigger Rate [kHz]",
+    ):
+        """
+        Plot the trigger rate vs threshold for different versions of the model including a ratio plot.
+        Args:
+            scores: List of arrays, each containing the ZB anomaly scores a model.
+            labels: List of labels for each model.
+            name: Name for the output figure.
+            baseline_scores: list of baseline scores for comparison.
+            category_labels: Optional two-tuple of category labels for the second legend.
+            ylabel: Optional alternative Y-axis label.
+        """
+        # Create figure with GridSpec for subplot control
+        fig = plt.figure(figsize=(10, 8))
+        gs = gridspec.GridSpec(2, 1, height_ratios=[3, 1], hspace=0.05)
+        
+        # Create main plot and ratio plot with shared x-axis
+        ax_main = fig.add_subplot(gs[0])
+        ax_ratio = fig.add_subplot(gs[1], sharex=ax_main)
+                
+        # plot main lines        
+        for i, (s, b, l, c) in enumerate(zip(scores, baseline_scores, labels, self.model_colors)):
+            thresholds, fractions = get_fractions_above_threshold(s)
+            baseline_thresholds, baseline_fractions = get_fractions_above_threshold(b)
+            
+            ax_main.plot(thresholds, fractions * 28610, ls='-', label=l, color=c)
+            ax_main.plot(baseline_thresholds, baseline_fractions * 28610, ls='--', color=c)
+                        
+            # For ratio plot, we need to interpolate to get values at the same thresholds
+            # Let's create a common x-axis (ratio_thresholds) for interpolation
+            min_threshold = max(min(thresholds), min(baseline_thresholds))
+            max_threshold = min(max(thresholds), max(baseline_thresholds))
+            ratio_thresholds = np.linspace(min_threshold, max_threshold, 100)
+            
+            # Interpolate rates for before and after at these thresholds
+            before_interp = np.interp(ratio_thresholds, thresholds, fractions)
+            after_interp = np.interp(ratio_thresholds, baseline_thresholds, baseline_fractions)
+            
+            # Calculate and plot ratio
+            ratio = before_interp / after_interp
+            ax_ratio.plot(ratio_thresholds, ratio, color=c)
+                            
+        first_legend = ax_main.legend(loc='upper right')
+        ax_main.add_artist(first_legend)
+
+        if category_labels is not None:
+            category_handles = [
+                Line2D([0], [0], color='grey', linestyle='-', lw=2),
+                Line2D([0], [0], color='grey', linestyle='--', lw=2)
+            ]
+            # Add second legend (styles in grey)
+            ax_main.legend(category_handles, category_labels, loc='lower left')
+        
+        # Set log scale for main plot
+        ax_main.set_yscale("log")
+        ax_main.set_ylabel(ylabel)
+        ax_main.grid(True, linestyle='--', alpha=0.7)
+        
+        # Remove x-ticks from main plot (will be in ratio plot)
+        plt.setp(ax_main.get_xticklabels(), visible=False)
+        
+        # Configure ratio plot
+        ax_ratio.axhline(y=1.0, color='black', linestyle='-', alpha=0.5)  # Reference line at ratio = 1
+        ax_ratio.set_ylabel("Ratio")
+        ax_ratio.set_xlabel("Score Threshold")
+        ax_ratio.grid(True, linestyle='--', alpha=0.7)
+        
+        # Set reasonable y-limits for ratio plot
+        ax_ratio.set_yscale("log")
+        
+        # Add CMS text to main plot
+        hep.cms.text('Preliminary', loc=0, ax=ax_main)
+        hep.cms.lumitext(r'2024 (13.6 TeV)', ax=ax_main)
+        
+        plt.tight_layout()
+        self._save_fig(name)
