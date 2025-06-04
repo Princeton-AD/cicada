@@ -5,7 +5,7 @@
 ---
 A “Periodical cicada” (magicicada septendecim) only emerge every 17 years and are noted for their [song](https://upload.wikimedia.org/wikipedia/commons/7/7a/A_Magicicada_chorus_containing_M._septendecim%2C_M._cassini%2C_and_M._septendecula_-_pone.0000892.s004.oga).
 
-**Calorimeter Image Convolutional Anomaly Detection Algorithm** (CICADA) uses low level Compact Muon Solenoid experiment's trigger calorimeter information as the input to convolutional autoencoder to find anomalies produced during Large Hadron Collider proton-proton collisionsis. Quantization Aware Training and Knowledge Distillation are used to compress the model for sub-500ns inference on Field-Programmable Gate Arrays.
+The **Calorimeter Image Convolutional Anomaly Detection Algorithm** (CICADA) uses low level Compact Muon Solenoid experiment's trigger calorimeter information as the input to a convolutional autoencoder to find anomalies produced during Large Hadron Collider proton-proton collisions. Quantization Aware Training and Knowledge Distillation are used to compress the model for sub-500ns inference on Field-Programmable Gate Arrays.
 
 ## Table of contents
   - [Papers](#Papers)
