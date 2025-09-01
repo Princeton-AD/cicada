@@ -218,7 +218,7 @@ def parse_arguments():
     parser.add_argument(
         "--npvtree",
         help="Tree w/ nPV info. E.g. data: npvNtuplizer/NPVTree, MC: l1EventTree/L1EventTree/Event",
-        default=None,
+        default="npvNtuplizer/NPVTree",
         type=str,
     )
     parser.add_argument(

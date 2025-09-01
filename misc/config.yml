@@ -1,52 +1,102 @@
 ---
 background:
  - path:
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/ZeroBias_with_l1evtnPV.h5'
+   name: 'Zero Bias' #'2017 opendata ZB Run E'
+   use: True
+   color: '#3f90da'   
+ - path:
    - '/eos/project/c/cicada-project/data/2023/Background/ZB_RunA_0.h5'
    name: '2023 ZB Run A'
    use: False
  - path: 
    - '/eos/project/c/cicada-project/data/2023/Background/ZB_RunB_0.h5'
    name: '2023 ZB Run B'
-   use: True
+   use: False
  - path:
    - '/eos/project/c/cicada-project/data/2023/Background/ZB_RunC_0.h5'
    name: '2023 ZB Run C'
-   use: True
+   use: False
  - path:
    - '/eos/project/c/cicada-project/data/2023/Background/ZB_RunD_0.h5'
    name: '2023 ZB Run D'
-   use: True
+   use: False
  - path:
    - '/eos/project/c/cicada-project/data/2023/Background/EZB0_RunC_0.h5'
    - '/eos/project/c/cicada-project/data/2023/Background/EZB0_RunC_1.h5'
    - '/eos/project/c/cicada-project/data/2023/Background/EZB0_RunC_2.h5' 
    name: '2023 EZB Run C'
-   use: True
+   use: False
 
 signal:
  - path:
-   - '/eos/project/c/cicada-project/data/2023/Signal/SUEP.h5'
-   name: 'SUEP'
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_hadronic_with_l1evtnPV.h5'
+   name: 'TTtoHadronic' 
    use: True
+   color: '#ffa90e'
  - path:
-   - '/eos/project/c/cicada-project/data/2023/Signal/H_ToLongLived.h5'
-   name: 'HtoLongLived'
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_2l2nu_with_l1evtnPV.h5'
+   name: 'TTto2L2Nu'
    use: True
+   color: '#b9ac70'
  - path:
-   - '/eos/project/c/cicada-project/data/2023/Signal/VBFHto2C.h5'
-   name: 'VBFHto2C'
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_semileptonic_with_l1evtnPV.h5'
+   name: 'TTtoSemiLeptonic'
    use: True
+   color: '#bd1f01'   
  - path:
-   - '/eos/project/c/cicada-project/data/2023/Signal/TT.h5'
-   name: 'TT' 
-   use: True
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/VBFHToCC_M-125_TuneCP5_13p6TeV_powheg-pythia8_0.h5'
+   name: 'VBFHto2C (old files-not open)'
+   use: False
+   color: '#94a4a2'
  - path:
-   - '/eos/project/c/cicada-project/data/2023/Signal/SUSYGGBBH.h5'
-   name: 'SUSYGGBBH'
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/singleneutrino_with_l1evtnPV.h5'
+   name: 'SingleNeutrino'
    use: True
+   color: '#832db6'
+ - path:
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/qcd_with_l1evtnPV.h5'
+   name: 'QCD'
+   use: True   
+   color: '#a96b59'
 
 exposure:
  training:
-  - '/eos/project/c/cicada-project/data/2023/Signal/DummyOutliers-Training.h5'
+  - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_2l2nu_with_l1evtnPV.h5' ##'/hdfs/store/user/mallampalli/cicada/Signal/GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8_0.h5' #'/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_semileptonic_with_l1evtnPV.h5' #
  validation:
-  - '/eos/project/c/cicada-project/data/2023/Signal/DummyOutliers-Validation.h5'
+  - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_2l2nu_with_l1evtnPV.h5' # #'/hdfs/store/user/mallampalli/cicada/Signal/SUEP.h5' #'/nfs_scratch/mallampalli/open_data/cicada/training/input_files/tt_2l2nu_with_l1evtnPV.h5' #
+
+test:
+ - path:
+   - '/hdfs/store/user/mallampalli/open_data/cicada/processed_files/h5/test_file_data.h5'
+   name: '2017 opendata ZB Run E testfile'
+   use: False
+ - path:
+   - '/hdfs/store/user/mallampalli/open_data/cicada/processed_files/using_container/test/h5/0078A596-9FA4-E711-BE5B-02163E012242_ZB.h5'
+   name: 'container: 2017 opendata ZB Run E testfile'
+   use: False   
+ - path:
+   - '/hdfs/store/user/mallampalli/cicada/Signal/SUEP.h5'
+   name: 'SUEP (old files)'
+   use: False
+ - path:
+   - '/hdfs/store/user/mallampalli/open_data/cicada/processed_files/using_container/test/h5/qcd.h5'
+   name: 'container: QCD'
+   use: False
+ - path:
+   - '/hdfs/store/user/mallampalli/open_data/cicada/processed_files/using_container/test/h5/tt_hadronic.h5'
+   name: 'container: tt_hadronic'
+   use: False     
+ - path:
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/ZeroBias_with_l1evtnPV.h5'
+   name: 'Zero Bias' #'2017 opendata ZB Run E'
+   use: True
+ - path:
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/singleneutrino_with_l1evtnPV.h5'
+   name: 'SingleNeutrino'
+   use: True
+ - path:
+   - '/nfs_scratch/mallampalli/open_data/cicada/training/input_files/qcd_with_l1evtnPV.h5'
+   name: 'QCD'
+   use: True      
+   

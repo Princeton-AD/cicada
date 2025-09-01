@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import numpy.typing as npt
+import yaml
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import ListedColormap
@@ -13,7 +14,7 @@ from matplotlib.patches import Patch, Rectangle
 from matplotlib.ticker import MaxNLocator
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
-from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
+#from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
 
@@ -24,7 +25,7 @@ class Draw:
     def __init__(self, output_dir: Path = Path("plots"), interactive: bool = False):
         self.output_dir = output_dir
         self.interactive = interactive
-        self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
+        self.cmap = self._build_color_map()#["green", "red", "blue", "orange", "purple", "brown"]
         self.model_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
         hep.style.use("CMS")
 
@@ -38,6 +39,21 @@ class Draw:
         if self.interactive:
             plt.show()
         plt.close()
+
+    def _build_color_map(self, config_path: str = './misc/config.yml') -> dict:
+        # for color consistency across runs, get color from config    
+        color_map = {}
+        with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+        # Combine all process lists (background, signal, etc.)
+        all_processes = config.get('background', []) + config.get('signal', [])
+        for process in all_processes:
+                # Check if both name and color keys exist and 'use' is True
+                if ((process.get('use')) and ('name' in process) and ('color' in process)):
+                        name = process['name']
+                        color = process['color']
+                        color_map[name] = color   
+        return color_map
 
     def plot_loss_history(
         self, training_loss: npt.NDArray, validation_loss: npt.NDArray, name: str
@@ -111,7 +127,7 @@ class Draw:
                 eta + 4,
                 weights=weights,
                 density=True,
-                facecolor=None,
+                facecolor='none',
                 bins=np.arange(4, 19),
                 label=label,
                 histtype="step"
@@ -120,7 +136,7 @@ class Draw:
                 phi,
                 weights=weights,
                 density=True,
-                facecolor=None,
+                facecolor='none',
                 bins=np.arange(19),
                 label=label,
                 histtype="step",
@@ -147,6 +163,23 @@ class Draw:
         plt.xlabel(r"E$_T$")
         plt.legend(loc="best")
         self._save_fig(f'profiling-deposits-{name}')
+
+    def plot_nPV_distribution(
+        self, npvs: List[npt.NDArray], labels: List[str], name: str,
+    ):
+        for npv, label in zip(npvs, labels):
+            plt.hist(
+                npv,
+                bins=100,
+                range=(0, 100),
+                density=1,
+                label=label,
+                log=False,
+                histtype="step",
+            )
+        plt.xlabel("Number of Primary Vertices (nPV)")
+        plt.legend(loc="best")
+        self._save_fig(f'profiling-nPV-{name}')
 
     def plot_cell_means(
         self, deposits: npt.NDArray, name: str
@@ -190,10 +223,11 @@ class Draw:
         deposits_out: npt.NDArray,
         loss: float,
         name: str,
+        qloss: float = None,
         is_data: bool = False,
     ):
-        fig, (ax1, ax2, ax3, cax) = plt.subplots(
-            ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
+        fig, (ax1, ax2, ax3) = plt.subplots(
+            ncols=3, figsize=(15, 10)
         )
         max_deposit = max(deposits_in.max(), deposits_out.max())
 
@@ -219,7 +253,8 @@ class Draw:
 
         ax3.get_xaxis().set_visible(False)
         ax3.get_yaxis().set_visible(False)
-        ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18, y=-0.1)
+        if(qloss!=None): ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}, teach_score : {qloss: .2f}", fontsize=18, y=-0.1)
+        else: ax3.set_title(rf"|$\Delta$|, MSE: {loss: .2f}", fontsize=18, y=-0.1)
 
         im = ax3.imshow(
             np.abs(deposits_in - deposits_out).reshape(18, 14),
@@ -228,9 +263,9 @@ class Draw:
             cmap="Purples",
         )
 
-        ip = InsetPosition(ax3, [1.05, 0, 0.05, 1])
-        cax.set_axes_locator(ip)
-        fig.colorbar(im, cax=cax, ax=[ax1, ax2, ax3]).set_label(
+        #ip = InsetPosition(ax3, [1.05, 0, 0.05, 1])
+        #cax.set_axes_locator(ip)
+        fig.colorbar(im, ax=[ax1, ax2, ax3]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
         self._save_fig(name)
@@ -280,6 +315,7 @@ class Draw:
         self, scores: List[npt.NDArray], labels: List[str], name: str
     ):
         for score, label in zip(scores, labels):
+            color = self.cmap.get(label, 'black')    
             plt.hist(
                 score.reshape((-1)),
                 bins=100,
@@ -288,6 +324,7 @@ class Draw:
                 label=label,
                 log=True,
                 histtype="step",
+                color=color
             )
         plt.xlabel(r"Anomaly Score")
         plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -308,10 +345,11 @@ class Draw:
             'mean': lambda x: np.mean(x**2, axis=(1, 2)),
             'max': lambda x: np.max(x**2, axis=(1, 2))
         }[baseline]
-        for y_true, y_pred, label, color, d in zip(
-            y_trues, y_preds, labels, self.cmap, inputs
+        for y_true, y_pred, label, d in zip(
+            y_trues, y_preds, labels, inputs
         ):
             aucs = []
+            color = self.cmap.get(label, 'black')
             for _, indices in skf.split(y_pred, y_true):
                 fpr, tpr, _ = roc_curve(y_true[indices], y_pred[indices])
                 aucs.append(auc(fpr, tpr))
@@ -341,14 +379,14 @@ class Draw:
                 label=rf"{label}, Baseline",
             )
 
-        plt.plot(
-            [0.003, 0.003],
-            [0, 1],
-            linestyle="--",
-            lw=1,
-            color="black",
-            label="3 kHz",
-        )
+        #plt.plot(
+        #    [0.003, 0.003],
+        #    [0, 1],
+        #    linestyle="--",
+        #    lw=1,
+        #    color="black",
+        #    label="3 kHz",
+        #)
         plt.xlim([0.0002861, 28.61])
         plt.ylim([0.01, 1.0])
         plt.xscale("log")
@@ -515,7 +553,7 @@ class Draw:
     ):
 
         fig, axs = plt.subplots(
-            nrows=2, ncols=4, figsize=(15, 10), gridspec_kw={"width_ratios": [1, 1, 1, 0.05]}
+            nrows=2, ncols=4, figsize=(15, 10)
         )
         max_deposit = image.max()
         xmax, ymax, _ = image.shape
@@ -527,18 +565,18 @@ class Draw:
         axs[0, 0].imshow(image, vmin=0, vmax=max_deposit, cmap="Purples")
         axs[0, 1].imshow(f(image), vmin=0, vmax=max_deposit, cmap="Purples")
         im = axs[0, 2].imshow(g(f(image)), vmin=0, vmax=max_deposit, cmap="Purples")
-        ip = InsetPosition(axs[0][2], [1.05, 0, 0.05, 1])
-        axs[0][3].set_axes_locator(ip)
-        fig.colorbar(im, cax=axs[0][3], ax=axs[0][:-1]).set_label(
+        #ip = InsetPosition(axs[0][2], [1.05, 0, 0.05, 1])
+        #axs[0][3].set_axes_locator(ip)
+        fig.colorbar(im, ax=axs[0][:-1]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
 
         axs[1, 0].imshow(image, vmin=0, vmax=max_deposit, cmap="Purples")
         axs[1, 1].imshow(g(image), vmin=0, vmax=max_deposit, cmap="Purples")
         im = axs[1, 2].imshow(f(g(image)), vmin=0, vmax=max_deposit, cmap="Purples")
-        ip = InsetPosition(axs[1][2], [1.05, 0, 0.05, 1])
-        axs[1][3].set_axes_locator(ip)
-        fig.colorbar(im, cax=axs[1][3], ax=axs[1][:-1]).set_label(
+        #ip = InsetPosition(axs[1][2], [1.05, 0, 0.05, 1])
+        #axs[1][3].set_axes_locator(ip)
+        fig.colorbar(im, ax=axs[1][:-1]).set_label(
             label=r"Calorimeter E$_T$ deposit (GeV)", fontsize=18
         )
 

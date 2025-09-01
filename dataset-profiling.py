@@ -17,14 +17,18 @@ from utils import IsValidFile, CreateFolder
 
 def get_deposits(datasets):
     generator = RegionETGenerator()
-    deposits, labels = [], []
+    deposits, nPVs, labels = [], [], []
     for dataset in datasets:
+        if not(dataset["use"]):continue
         name = dataset["name"]
         X = generator.get_data(dataset["path"])
         print(f"{name} samples: {X.shape[0]}")
+        npv = generator.get_nPV(dataset["path"])
+        print(f"{name} nPV samples: {npv.shape[0]}")
         deposits.append(X)
+        nPVs.append(npv)
         labels.append(name)
-    return deposits, labels
+    return deposits, labels, nPVs
 
 
 def pprint_acceptance(datasets: dict) -> None:
@@ -41,9 +45,9 @@ def main(args=None) -> None:
 
     draw = Draw(output_dir=args.output, interactive=args.interactive)
 
-    for category, dataset in zip(["Background", "Signal"], [config["background"], config["signal"]]):
+    for category, dataset in zip(["Test"], [config["test"]]):
 
-        deposits, labels = get_deposits(dataset)
+        deposits, labels, npvs = get_deposits(dataset)
 
         for name, X in zip(labels, deposits):
             draw.plot_regional_deposits(
@@ -52,6 +56,7 @@ def main(args=None) -> None:
 
         draw.plot_spacial_deposits_distribution(deposits, labels, name=category, apply_weights=True)
         draw.plot_deposits_distribution(deposits, labels, name=category)
+        draw.plot_nPV_distribution(npvs, labels, name=category)
 
     pprint_acceptance(config["signal"])
 

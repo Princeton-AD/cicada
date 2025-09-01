@@ -16,7 +16,11 @@ from huggingface_hub import from_pretrained_keras
 from generator import RegionETGenerator
 from pathlib import Path
 from utils import IsValidFile, CreateFolder
-
+from hgq.layers import QConv2D, QDense, QBatchNormDense
+from hgq.config import LayerConfigScope, QuantizerConfigScope
+from hgq.utils import trace_minmax
+from tensorflow.keras.models import load_model
+from hls4ml.converters import convert_from_keras_model
 
 class EliminateLinearActivationCustom(OptimizerPass):
     def match(self, node):
@@ -57,7 +61,7 @@ def get_hls_config(keras_model, version):
 
 
 def convert_to_hls4ml_model(keras_model, hls_config, version="1.0.0"):
-    hls_model = hls4ml.converters.convert_from_keras_model(
+    hls_model = convert_from_keras_model(
         keras_model,
         clock_period=6.25,
         backend="Vitis",
@@ -71,16 +75,68 @@ def convert_to_hls4ml_model(keras_model, hls_config, version="1.0.0"):
     hls_model.compile()
     return hls_model
 
+def get_hls_config_for_hgq(keras_model):
+    hls_config = hls4ml.utils.config_from_keras_model(keras_model, granularity="name")
+
+    for layer in hls_config["LayerName"].keys(): print(layer)
+
+    hls_config["Model"]["Strategy"] = "Latency"
+
+    for layer in hls_config["LayerName"].keys():
+        hls_config["LayerName"][layer]["ReuseFactor"] = 1
+
+    #hls_config["LayerName"]["inputs_"]['PartitionFactor'] = 252 # 18*14*1
+    #hls_config["LayerName"]["inputs_"]['data'] = 'complete'
+    #if 'PartitionFactor' in hls_config["LayerName"]["inputs_"]:
+    #    del hls_config["LayerName"]["inputs_"]['PartitionFactor']
+    #hls_config['LayerName']['inputs_']['Pragmas'] = {
+    #            'ARRAY_PARTITION': {
+    #                    'variable': 'inputs_s.V',
+    #                    'type': 'complete', 
+    #                    'dim': 0
+    #            }
+    #}   
+    hls_config["LayerName"]["conv"]["Strategy"] = "Latency"
+    hls_config["LayerName"]["conv"]["ParallelizationFactor"] = 21 
+    #hls_config['LayerName']['conv']['Pragmas'] = {
+    #            'ARRAY_PARTITION': {
+    #                    'variable': 'data_buf.V', 
+    #                    'type': 'block',#'complete', 
+    #                    'factor': 4,
+    #                    'dim': 1
+    #            }
+    #}     
+    print(hls_config)#;input("wait")
+    return hls_config
+
+def convert_hgq_to_hls4ml(keras_model, output_dir):
+    hls_config = get_hls_config_for_hgq(keras_model)   
+    print(hls_config) 
+    hls_model = convert_from_keras_model(
+        keras_model,
+        clock_period=6.25,
+        backend="Vitis",
+        hls_config=hls_config,
+        io_type="io_parallel",
+        output_dir=output_dir,
+        part="xc7vx690tffg1927-2",
+        project_name="cicada",
+        #version=version,
+    )
+    hls_model.compile()
+    return hls_model
 
 def testing(keras_model, hls_model, dataset_signals, dataset_background, output_dir, interactive):
     scores = {"scores_hls4ml": {}, "scores_keras": {}}
     for dataset_name, test_vectors in dataset_signals.items():
-        test_vectors = test_vectors.reshape(-1, 252)
+        test_vectors = test_vectors.reshape(-1, 252)#model has reshape
+        #test_vectors = test_vectors.reshape(-1, 18, 14, 1)
         scores_hls4ml = hls_model.predict(test_vectors)
         scores_keras = keras_model.predict(test_vectors)
         scores["scores_hls4ml"][dataset_name] = scores_hls4ml.flatten()
         scores["scores_keras"][dataset_name] = scores_keras.flatten()
-    test_vectors = dataset_background.reshape(-1, 252)
+    test_vectors = dataset_background.reshape(-1, 252)#model has reshape
+    #test_vectors = dataset_background.reshape(-1, 18, 14, 1)
     scores_hls4ml = hls_model.predict(test_vectors)
     scores_keras = keras_model.predict(test_vectors)
     scores["scores_hls4ml"]["Background"] = scores_hls4ml.flatten()
@@ -105,15 +161,25 @@ def cleanup():
     for f in glob.glob("*.tar.gz"):
         os.remove(f)
 
+def load_hgqv2_model(model_name):
+        custom_objects_dict = {
+                "QuantizerConfigScope": QuantizerConfigScope,
+                "LayerConfigScope": LayerConfigScope,
+                "QConv2D": QConv2D,
+                "QBatchNormDense": QBatchNormDense,
+                "QDense": QDense,
+        }
+        cicada_v2 = load_model(f"{model_name}/hgq2_model/model_checkpoint.keras",custom_objects=custom_objects_dict)
+        return cicada_v2
 
 def main(args) -> None:
 
     config = yaml.safe_load(open(args.config))
 
     # Workaround for linear activation layer removal
-    hls4ml.model.flow.flow.update_flow(
-        "optimize", remove_optimizers=["eliminate_linear_activation"]
-    )
+    #hls4ml.model.flow.flow.update_flow(
+    #    "optimize", remove_optimizers=["eliminate_linear_activation"]
+    #)
     register_pass(
         "overwrite_eliminate_linear_activation", EliminateLinearActivationCustom
     )
@@ -122,25 +188,44 @@ def main(args) -> None:
     )
 
     # Load QKeras model
-    keras_model = from_pretrained_keras(
-        "cicada-project/cicada-v{}".format(".".join(args.version.split(".")[:-1]))
-    )
-
+    #keras_model = from_pretrained_keras(
+    #    "cicada-project/cicada-v{}".format(".".join(args.version.split(".")[:-1]))
+    #)
+    # Load HGQv2 model
+    keras_model = load_hgqv2_model(args.name)
+    print(keras_model.summary())#; input("ok?")
+    #keras_model.build((252))
+    #for layer in keras_model.layers: print(f"Layer: {layer.name:<20} | Output Shape: {layer.output_shape}")
     # Genrate hls4ml config
-    hls_config = get_hls_config(keras_model, args.version)
+    #hls_config = get_hls_config(keras_model, args.version)
 
     # Genrate hls4ml model
-    hls_model = convert_to_hls4ml_model(keras_model, hls_config, args.version)
+    #hls_model = convert_to_hls4ml_model(keras_model, hls_config, args.version)
 
     # Gather evaluation datasets
     datasets = [i["path"] for i in config["background"] if i["use"]]
     datasets = [path for paths in datasets for path in paths]
     gen = RegionETGenerator()
-    _, _, dataset_background = gen.get_data_split(datasets)
+    train_background, _, dataset_background = gen.get_data_split(datasets)
     dataset_signal, _ = gen.get_benchmark(config["signal"], filter_acceptance=False)
 
+    outlier_train, _ = gen.generate_random_exposure_data(train_background,train_background,500_000,100_000)
+    dataset_train = np.concatenate([train_background, outlier_train])
+    print("Running trace_minmax and conversion to hls model")
+    dataset_train = dataset_train.reshape(-1, 252)#model has reshape
+    #dataset_train = dataset_train.reshape(-1, 18, 14, 1)
+    trace_minmax(keras_model, dataset_train)
+    hls_model = convert_hgq_to_hls4ml(keras_model, './hgq_with_reshape_latest/')
+    print("writing")
+    hls_model.write()
+    print("compiling")
+    hls_model._compile()
+    print("testing")
     # Final tests of the final configuration
     testing(keras_model, hls_model, dataset_signal, dataset_background, args.output, args.interactive)
+    print("starting build")
+    hls_model.build(csim=False)
+    hls4ml.report.read_vivado_report('hgq_with_reshape_latest')
 
     cleanup()
 
@@ -171,4 +256,5 @@ if __name__ == "__main__":
         help="Path to config file",
     )
     parser.add_argument("-v", "--version", type=str, help="CICADA version")
+    parser.add_argument("-n", "--name", type=str, help="CICADA version")
     main(parser.parse_args())
